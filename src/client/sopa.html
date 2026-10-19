@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#15121d">
+  <title>Sopa de Letras · Jugar</title>
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;700;800;900&display=swap">
+  <link rel="stylesheet" href="/assets/theme.css">
+  <style>
+    .setup { max-width: 640px; margin: 0 auto; }
+    .title { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+    .title .tiles .tile { width: 38px; font-size: 22px; }
+    .title .tiles .tile:nth-child(2) { --t: 4deg; } .title .tiles .tile:nth-child(3) { --t: -3deg; }
+    .lobby { max-width: 520px; margin: 0 auto; text-align: center; }
+    .lobby .players { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .seat { padding: 14px; border-radius: 16px; border: 2px dashed var(--line); font-weight: 900; }
+    .seat.filled { border-style: solid; }
+    .seat.p0.filled { border-color: var(--p0); } .seat.p1.filled { border-color: var(--p1); }
+
+    /* Juego */
+    .game { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 16px; align-items: start; }
+    .hud { display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px; align-items: stretch; margin-bottom: 12px; }
+    .score { padding: 10px 14px; border-radius: 16px; background: var(--panel); border: 2px solid var(--line); min-width: 0; transition: border-color .2s, transform .2s; }
+    .score .who { font-weight: 800; font-size: 14px; display: flex; gap: 6px; align-items: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .score strong { font-size: 30px; font-weight: 900; line-height: 1.1; display: block; }
+    .score .wins { font-size: 12px; color: var(--muted); font-weight: 800; }
+    .hud.solo { grid-template-columns: auto 1fr; }
+    .hud.solo .center { justify-items: end; text-align: right; }
+    .score.p1 { text-align: right; } .score.p1 .who { justify-content: flex-end; }
+    .score.p0 strong { color: var(--p0); } .score.p1 strong { color: var(--p1); }
+    .score.current.p0 { border-color: var(--p0); transform: translateY(-2px); }
+    .score.current.p1 { border-color: var(--p1); transform: translateY(-2px); }
+    .center { display: grid; place-items: center; text-align: center; padding: 0 6px; min-width: 92px; }
+    .center .clock { font-size: 26px; font-weight: 900; font-variant-numeric: tabular-nums; }
+    .center .clock.low { color: var(--danger); animation: pulse 1s infinite; }
+    .center .lbl2 { font-size: 12px; color: var(--muted); font-weight: 800; }
+    @keyframes pulse { 50% { opacity: .5; } }
+    .bar { height: 7px; border-radius: 9px; background: var(--line); overflow: hidden; margin-bottom: 12px; }
+    .bar > div { height: 100%; background: var(--gold); transition: width .25s linear; }
+    .turnmsg { text-align: center; font-weight: 900; margin-bottom: 10px; min-height: 24px; }
+    .turnmsg.mine { color: var(--gold); }
+
+    .board-wrap { position: relative; margin: 0 auto; width: min(100%, 640px, calc(100vh - 250px)); min-width: 280px; }
+    .board {
+      display: grid; gap: 2px; padding: 8px; border-radius: 18px; background: linear-gradient(180deg, var(--paper), var(--paper-2));
+      box-shadow: 0 5px 0 #b9a77f, var(--shadow); touch-action: none; user-select: none; -webkit-user-select: none;
+    }
+    .board.waiting { filter: saturate(.6) brightness(.85); }
+    .cell {
+      aspect-ratio: 1; display: grid; place-items: center; color: var(--ink); font-weight: 900; border-radius: 8px;
+      font-size: var(--fs, 20px); position: relative; z-index: 2; cursor: pointer;
+    }
+    .cell.sel { color: #3b2a00; }
+    .cell.anchor { background: #ffcd5e66; }
+    .cell.hint::after { content: ""; position: absolute; inset: 1px; border-radius: 50%; border: 3px solid var(--coral); animation: pulse 1s infinite; }
+    svg.lines { position: absolute; inset: 8px; width: calc(100% - 16px); height: calc(100% - 16px); pointer-events: none; z-index: 1; overflow: visible; }
+    svg.lines line { stroke-linecap: round; }
+    .l0 { stroke: var(--p0); opacity: .55; } .l1 { stroke: var(--p1); opacity: .6; }
+    .lsel { stroke: var(--gold); opacity: .75; }
+    .lmiss { stroke: var(--danger); opacity: .35; stroke-dasharray: .2 .25; }
+    .lnew { animation: glow .7s ease-out; }
+    @keyframes glow { from { opacity: 1; stroke-width: 1; } }
+    .board.shake { animation: shake .3s; }
+    @keyframes shake { 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+
+    .side { display: grid; gap: 12px; }
+    .words { display: flex; flex-wrap: wrap; gap: 7px; }
+    .word { padding: 6px 11px; border-radius: 999px; background: #ffffff0f; font-weight: 850; font-size: 14px; letter-spacing: .04em; border: 1px solid transparent; }
+    .word.f0 { background: #ff7b5c26; border-color: var(--p0); text-decoration: line-through; text-decoration-thickness: 2px; color: #ffd6cb; }
+    .word.f1 { background: #4fd1a526; border-color: var(--p1); text-decoration: line-through; text-decoration-thickness: 2px; color: #c9f5e6; }
+    .word.miss { border-color: var(--danger); color: var(--danger); }
+    .word.pop { animation: pop .4s; }
+    @keyframes pop { 50% { transform: scale(1.18); } }
+    .progress { font-weight: 900; }
+    .help { font-size: 13px; color: var(--muted); }
+    .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .end-scores { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 16px 0; }
+    .end-scores div { padding: 12px; border-radius: 14px; background: #ffffff0a; font-weight: 800; }
+    .end-scores b { display: block; font-size: 30px; }
+    .end-actions { display: grid; gap: 8px; margin-top: 14px; }
+
+    @media (max-width: 860px) {
+      .game { grid-template-columns: 1fr; }
+      .board-wrap { width: min(100%, 640px); }
+    }
+    @media (max-width: 520px) {
+      main.wrap { padding: 12px 8px 40px; }
+      .board { padding: 5px; gap: 1px; border-radius: 14px; }
+      svg.lines { inset: 5px; width: calc(100% - 10px); height: calc(100% - 10px); }
+      .score { padding: 8px 10px; } .score strong { font-size: 24px; }
+      .center .clock { font-size: 22px; }
+    }
+  </style>
+</head>
+<body>
+<main class="wrap">
+  <div class="topbar">
+    <a class="back" href="/">← Biblioteca</a>
+    <div class="row">
+      <button class="iconbtn hide" id="shareTop" type="button" aria-label="Invitar">📨</button>
+      <button class="iconbtn" id="sound" type="button"></button>
+    </div>
+  </div>
+
+  <!-- Configuración -->
+  <section id="setup" class="setup">
+    <div class="title">
+      <div class="tiles" aria-hidden="true"><span class="tile hot">S</span><span class="tile">D</span><span class="tile cool">L</span></div>
+      <div><div class="kicker">El juego original</div><h1>Sopa de Letras</h1></div>
+    </div>
+    <div class="panel stack">
+      <div>
+        <label class="lbl" for="name">Tu nombre</label>
+        <input id="name" class="input" maxlength="18" placeholder="Escribí tu nombre" autocomplete="nickname">
+      </div>
+
+      <div class="step"><b>1</b> ¿Cómo querés jugar?</div>
+      <div class="choices three" id="modeChoices">
+        <button type="button" class="choice" data-value="solo">🧘 Solo<small>Contrarreloj, con pistas</small></button>
+        <button type="button" class="choice" data-value="turnos">🔁 Por turnos<small>De a dos, con reloj</small></button>
+        <button type="button" class="choice" data-value="carrera">⚡ Carrera<small>De a dos, a la vez</small></button>
+      </div>
+
+      <div class="step"><b>2</b> Dificultad</div>
+      <div class="choices four" id="sizeChoices">
+        <button type="button" class="choice" data-value="9">🌱 Fácil<small>9×9 · → ↓</small></button>
+        <button type="button" class="choice" data-value="12">🎯 Media<small>12×12 · diagonales</small></button>
+        <button type="button" class="choice" data-value="15">⚡ Difícil<small>15×15 · al revés</small></button>
+        <button type="button" class="choice" data-value="18">🔥 Experta<small>18×18 · 19 palabras</small></button>
+      </div>
+
+      <div class="step"><b>3</b> Categoría</div>
+      <div class="choices" id="catChoices"></div>
+
+      <div id="timeBlock" class="stack">
+        <div class="step"><b>4</b> Tiempo por turno</div>
+        <div class="choices five center" id="timeChoices">
+          <button type="button" class="choice" data-value="15">15 s<small>Rápido</small></button>
+          <button type="button" class="choice" data-value="30">30 s<small>Normal</small></button>
+          <button type="button" class="choice" data-value="45">45 s<small>Tranqui</small></button>
+          <button type="button" class="choice" data-value="60">60 s<small>Sin apuro</small></button>
+          <button type="button" class="choice" data-value="90">90 s<small>Relax</small></button>
+        </div>
+      </div>
+
+      <button id="create" class="btn primary block" type="button">Crear sala</button>
+
+      <div class="divider">¿Te pasaron un código?</div>
+      <div class="row">
+        <label class="sr-only" for="code">Código de sala</label>
+        <input id="code" class="input code" maxlength="6" placeholder="CÓDIGO" autocomplete="off" style="flex:1;min-width:0">
+        <button id="join" class="btn mint" type="button">Unirme →</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Sala de espera -->
+  <section id="lobby" class="lobby hide">
+    <div class="panel stack">
+      <div class="kicker">Sala lista</div>
+      <div class="code-big" id="lobbyCode"></div>
+      <p class="muted" id="lobbyInfo"></p>
+      <div class="players">
+        <div class="seat p0" id="seat0"></div>
+        <div class="seat p1" id="seat1"></div>
+      </div>
+      <a class="btn mint block" id="wa" target="_blank" rel="noopener">💬 Invitar por WhatsApp</a>
+      <div class="actions">
+        <button class="btn" id="copy" type="button">📋 Copiar enlace</button>
+        <button class="btn" id="shareBtn" type="button">📨 Compartir</button>
+      </div>
+      <button class="btn primary block" id="begin" type="button" disabled>Empezar partida</button>
+      <p class="muted small" id="beginHint"></p>
+    </div>
+  </section>
+
+  <!-- Partida -->
+  <section id="game" class="game hide">
+    <div>
+      <div class="hud">
+        <div class="score p0" id="sc0"><div class="who"><span class="dot" id="on0"></span><span id="nm0"></span></div><strong id="pt0">0</strong><span class="wins" id="w0"></span></div>
+        <div class="center"><div class="clock" id="clock">0:00</div><div class="lbl2" id="clockLbl"></div></div>
+        <div class="score p1" id="sc1"><div class="who"><span id="nm1"></span><span class="dot" id="on1"></span></div><strong id="pt1">0</strong><span class="wins" id="w1"></span></div>
+      </div>
+      <div class="bar" id="barWrap"><div id="bar"></div></div>
+      <div class="turnmsg" id="turnMsg"></div>
+      <div class="board-wrap">
+        <div class="board" id="board" aria-label="Tablero de letras"></div>
+        <svg class="lines" id="lines" aria-hidden="true"></svg>
+      </div>
+    </div>
+    <aside class="side">
+      <div class="panel stack">
+        <div class="spread"><h3 id="catName"></h3><span class="progress" id="progress"></span></div>
+        <div class="words" id="words"></div>
+        <p class="help">Deslizá el dedo sobre la palabra, o tocá la primera y la última letra.</p>
+      </div>
+      <div class="actions" id="gameActions">
+        <button class="btn" id="pass" type="button">⏭ Pasar turno</button>
+        <button class="btn" id="hint" type="button">💡 Pista <small>(+20 s)</small></button>
+        <button class="btn ghost" id="giveup" type="button">🏳️ Terminar</button>
+      </div>
+    </aside>
+  </section>
+</main>
+
+<!-- Fin de partida -->
+<div class="modal hide" id="ending" role="dialog" aria-modal="true" aria-labelledby="endTitle">
+  <div class="panel">
+    <div class="big-emoji" id="endEmoji">🏆</div>
+    <h2 id="endTitle" style="margin-top:10px"></h2>
+    <p class="muted" id="endSub" style="margin-top:6px"></p>
+    <div class="end-scores" id="endScores"></div>
+    <div class="end-actions">
+      <button class="btn primary block" id="rematch" type="button">🔁 Revancha</button>
+      <button class="btn block" id="seeBoard" type="button">👀 Ver el tablero</button>
+      <a class="btn ghost block" href="/sopa" id="newSetup">⚙️ Cambiar reglas</a>
+    </div>
+  </div>
+</div>
+
+<script>window.CATEGORIES = __CATEGORIES__;</script>
+<script src="/assets/common.js"></script>
+<script src="/assets/sopa.js"></script>
+</body>
+</html>

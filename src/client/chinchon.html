@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#15121d">
+  <title>Chinchón · Sopa de Letras</title>
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;700;800;900&display=swap">
+  <link rel="stylesheet" href="/assets/theme.css">
+  <style>
+    .setup, .lobby { max-width: 600px; margin: 0 auto; }
+    .lobby { text-align: center; }
+    .title { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
+    .title .emoji { font-size: 46px; }
+    details.rules { border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; background: #ffffff06; }
+    details.rules summary { font-weight: 900; cursor: pointer; }
+    details.rules ul { margin: 10px 0 0; padding-left: 18px; color: var(--muted); display: grid; gap: 5px; font-size: 14px; }
+    .seats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .seat { padding: 14px; border-radius: 16px; border: 2px dashed var(--line); font-weight: 900; }
+    .seat.filled { border-style: solid; border-color: var(--mint); }
+
+    /* Marcador */
+    .board-top { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+    .ps { padding: 10px 14px; border-radius: 16px; background: var(--panel); border: 2px solid var(--line); transition: border-color .2s; }
+    .ps.turn { border-color: var(--gold); }
+    .ps .who { display: flex; align-items: center; gap: 7px; font-weight: 850; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ps .pts { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; }
+    .ps strong { font-size: 28px; font-weight: 900; }
+    .ps .meter { height: 6px; border-radius: 9px; background: var(--line); overflow: hidden; margin-top: 4px; }
+    .ps .meter div { height: 100%; background: linear-gradient(90deg, var(--mint), var(--gold), var(--danger)); background-size: 300% 100%; }
+
+    /* Mesa */
+    .table {
+      position: relative; border-radius: 34px; padding: 16px 10px 20px; text-align: center;
+      background: radial-gradient(ellipse at 50% 40%, #2c7a5c, #154536 75%);
+      border: 10px solid #6e4426; box-shadow: inset 0 0 40px #0008, 0 0 0 2px #8a5a35, var(--shadow);
+    }
+    .opp { min-height: 104px; }
+    .opp .who { font-weight: 850; font-size: 14px; display: inline-flex; align-items: center; gap: 7px; background: #0003; padding: 4px 11px; border-radius: 999px; }
+    .opp-hand { display: flex; justify-content: center; margin-top: 10px; height: 74px; }
+    .cback {
+      width: 46px; height: 70px; margin: 0 -9px; border-radius: 8px; border: 3px solid #f2e8cc; transform: rotate(var(--r));
+      background: repeating-linear-gradient(45deg, #8e2f3a 0 6px, #6d2130 6px 12px); box-shadow: 0 4px 8px #0006; transition: transform .25s;
+    }
+    .opp.sorting .cback { animation: wiggle .45s; }
+    @keyframes wiggle { 35% { transform: rotate(calc(var(--r) - 6deg)); } 70% { transform: rotate(calc(var(--r) + 6deg)); } }
+    .middle { display: flex; justify-content: center; align-items: center; gap: clamp(18px, 7vw, 54px); margin: 10px 0 8px; }
+    .pile { display: grid; justify-items: center; gap: 6px; font-size: 11px; font-weight: 900; letter-spacing: .12em; color: #d6efe4; }
+    .pile button { all: unset; cursor: pointer; border-radius: 12px; position: relative; }
+    .pile button:disabled { cursor: default; }
+    .pile button:focus-visible { outline: 3px solid var(--gold); outline-offset: 4px; }
+    .deck .cback { width: 74px; height: 110px; margin: 0; --r: 0deg; box-shadow: 3px 3px 0 #d8cfb2, 6px 6px 0 #b8ae90, 0 12px 18px #0007; }
+    .deck .count { position: absolute; inset: 0; display: grid; place-items: center; font-size: 20px; font-weight: 900; color: #fff; text-shadow: 0 2px 4px #000; }
+    .glow { animation: glow 1.4s infinite; }
+    @keyframes glow { 50% { box-shadow: 0 0 0 4px var(--gold), 0 0 26px var(--gold); } }
+    .drop-ready { outline: 4px solid var(--gold); outline-offset: 6px; transform: scale(1.06); }
+    .drop-blocked { outline: 4px solid var(--danger); outline-offset: 6px; }
+    .status { font-weight: 900; font-size: 17px; min-height: 26px; margin: 6px 0 2px; }
+    .status.mine { color: var(--gold); }
+    .note { font-size: 13px; color: #d6efe4; min-height: 20px; }
+
+    /* Cartas */
+    .card {
+      --r: 0deg; --suit: #333;
+      position: relative; width: 74px; height: 110px; flex-shrink: 0; border-radius: 10px; border: 2px solid #fff;
+      background: linear-gradient(180deg, #fffdf6, #f1e6cc); color: var(--suit); box-shadow: 0 5px 10px #0006;
+      display: grid; place-items: center; font-weight: 900; padding: 0; cursor: pointer; user-select: none; -webkit-user-select: none; touch-action: none;
+      transition: transform .18s, box-shadow .18s;
+    }
+    .card .n { position: absolute; top: 5px; left: 7px; font-size: 19px; line-height: 1; }
+    .card .n2 { position: absolute; bottom: 5px; right: 7px; font-size: 19px; line-height: 1; transform: rotate(180deg); }
+    .card .s { font-size: 32px; line-height: 1; }
+    .card .f { position: absolute; bottom: 7px; left: 0; right: 0; font-size: 10px; letter-spacing: .05em; text-transform: uppercase; color: #8a7c5d; }
+    .card.s0 { --suit: #b07d06; } .card.s1 { --suit: #c4283f; } .card.s2 { --suit: #2b62a8; } .card.s3 { --suit: #2e7d3d; }
+    .card.empty { background: #0002; border: 2px dashed #ffffff55; box-shadow: none; }
+    .hand { display: flex; justify-content: center; align-items: flex-end; min-height: 150px; padding: 26px 4px 6px; margin-top: 6px; }
+    .hand .card { margin: 0 -7px; transform: translateY(var(--y, 0)) rotate(var(--r)); transform-origin: 50% 120%; }
+    .hand .card.sel { --y: -22px; border-color: var(--gold); box-shadow: 0 0 0 3px var(--gold), 0 10px 18px #0008; }
+    .hand .card.m0 { box-shadow: 0 -4px 0 0 #4fd1a5 inset, 0 5px 10px #0006; }
+    .hand .card.m1 { box-shadow: 0 -4px 0 0 #b58cff inset, 0 5px 10px #0006; }
+    .hand .card.m2 { box-shadow: 0 -4px 0 0 #5cb8ff inset, 0 5px 10px #0006; }
+    .hand .card.new { animation: drawIn .45s ease-out; }
+    .hand .card.dragging { z-index: 30; transition: none; filter: drop-shadow(0 14px 14px #000a); }
+    .hand .card.blocked { opacity: .75; }
+    .tag {
+      position: absolute; top: -10px; left: 50%; transform: translateX(-50%); font-size: 10px; font-weight: 900; white-space: nowrap;
+      padding: 2px 6px; border-radius: 999px; background: var(--gold); color: #3b2a00; box-shadow: 0 2px 4px #0005;
+    }
+    .tag.pozo { background: #ffffffdd; color: #333; }
+    @keyframes drawIn { from { transform: translateY(-120px) scale(.7); opacity: .3; } }
+    .pile .card.drop { animation: drop .4s ease-out; }
+    @keyframes drop { from { transform: translateY(-60px) scale(1.12); opacity: .4; } }
+    .table.dealing .hand .card, .table.dealing .cback { animation: drawIn .5s backwards; }
+    .table.dealing .hand .card:nth-child(2n), .table.dealing .cback:nth-child(2n) { animation-delay: .1s; }
+    .table.dealing .hand .card:nth-child(3n), .table.dealing .cback:nth-child(3n) { animation-delay: .2s; }
+
+    .controls { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 12px; }
+    .tip { text-align: center; margin-top: 10px; font-size: 14px; color: var(--muted); min-height: 21px; }
+    .tip b { color: var(--text); }
+
+    /* Resultado */
+    .reveal { display: grid; gap: 14px; text-align: left; margin: 14px 0; }
+    .reveal .who { font-weight: 900; display: flex; justify-content: space-between; gap: 8px; }
+    .reveal .who span:last-child { color: var(--gold); }
+    .groups { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 6px; }
+    .group { display: flex; padding: 6px 10px 6px 16px; border-radius: 12px; background: #4fd1a51f; border: 1px solid #4fd1a566; }
+    .group.loose { background: #ff6b811a; border-color: #ff6b8155; }
+    .group .card { width: 44px; height: 64px; margin-left: -10px; cursor: default; }
+    .group .card .n { font-size: 13px; top: 3px; left: 4px; } .group .card .n2, .group .card .f { display: none; }
+    .group .card .s { font-size: 20px; }
+    .totals { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .totals div { padding: 10px; border-radius: 14px; background: #ffffff0a; font-weight: 800; }
+    .totals b { display: block; font-size: 26px; }
+    .end-actions { display: grid; gap: 8px; margin-top: 14px; }
+
+    @media (max-width: 560px) {
+      main.wrap { padding: 12px 8px 40px; }
+      .table { border-width: 6px; border-radius: 24px; padding: 12px 4px 16px; }
+      .card { width: clamp(40px, 12.4vw, 62px); height: clamp(64px, 19vw, 94px); border-radius: 8px; }
+      .card .n, .card .n2 { font-size: 15px; top: 3px; left: 4px; }
+      .card .n2 { top: auto; left: auto; bottom: 3px; right: 4px; }
+      .card .s { font-size: clamp(18px, 6vw, 26px); }
+      .card .f { display: none; }
+      .hand .card { margin: 0 -4px; }
+      .deck .cback { width: 62px; height: 92px; }
+      .controls .btn { font-size: 14px; padding: 10px 6px; }
+    }
+  </style>
+</head>
+<body>
+<main class="wrap">
+  <div class="topbar">
+    <a class="back" href="/">← Biblioteca</a>
+    <button class="iconbtn" id="sound" type="button"></button>
+  </div>
+
+  <section id="setup" class="setup">
+    <div class="title">
+      <span class="emoji" aria-hidden="true">🃏</span>
+      <div><div class="kicker">Juego de cartas</div><h1>Chinchón</h1></div>
+    </div>
+    <div class="panel stack">
+      <div>
+        <label class="lbl" for="name">Tu nombre</label>
+        <input id="name" class="input" maxlength="18" placeholder="Escribí tu nombre" autocomplete="nickname">
+      </div>
+      <div class="step"><b>1</b> ¿Contra quién?</div>
+      <div class="choices two" id="modeChoices">
+        <button type="button" class="choice" data-value="bot">🤖 Contra la compu<small>Empieza al toque</small></button>
+        <button type="button" class="choice" data-value="create">👥 De a dos<small>Invitá a tu pareja</small></button>
+      </div>
+      <div class="step"><b>2</b> ¿Hasta cuántos puntos?</div>
+      <div class="choices two center" id="targetChoices">
+        <button type="button" class="choice" data-value="50">50<small>Partida corta</small></button>
+        <button type="button" class="choice" data-value="100">100<small>Clásica</small></button>
+      </div>
+      <button id="go" class="btn primary block" type="button">Empezar</button>
+      <div class="divider">¿Te pasaron un código?</div>
+      <div class="row">
+        <label class="sr-only" for="code">Código de sala</label>
+        <input id="code" class="input code" maxlength="6" placeholder="CÓDIGO" autocomplete="off" style="flex:1;min-width:0">
+        <button id="join" class="btn mint" type="button">Unirme →</button>
+      </div>
+      <details class="rules">
+        <summary>📖 Reglas rápidas</summary>
+        <ul>
+          <li>Baraja española de 40 cartas. Cada uno arranca con 7.</li>
+          <li>En tu turno robás una carta (del mazo o del pozo) y tirás una.</li>
+          <li>Juntá <b>piernas</b> (3 o 4 del mismo número) y <b>escaleras</b> (3 o más seguidas del mismo palo; el 7 sigue con la sota).</li>
+          <li>Podés <b>cortar</b> si las cartas que no forman juego suman 5 o menos. Si todas forman juego, restás 10.</li>
+          <li>Las figuras valen 10. Quien llega al límite de puntos pierde.</li>
+          <li><b>Chinchón</b>: escalera de 7 del mismo palo. ¡Ganás la partida al instante!</li>
+        </ul>
+      </details>
+    </div>
+  </section>
+
+  <section id="lobby" class="lobby hide">
+    <div class="panel stack">
+      <div class="kicker">Sala lista</div>
+      <div class="code-big" id="lobbyCode"></div>
+      <div class="seats"><div class="seat" id="seat0"></div><div class="seat" id="seat1"></div></div>
+      <a class="btn mint block" id="wa" target="_blank" rel="noopener">💬 Invitar por WhatsApp</a>
+      <div class="controls" style="grid-template-columns:1fr 1fr">
+        <button class="btn" id="copy" type="button">📋 Copiar enlace</button>
+        <button class="btn" id="shareBtn" type="button">📨 Compartir</button>
+      </div>
+      <button class="btn primary block" id="start" type="button" disabled>Empezar partida</button>
+      <p class="muted small" id="startHint"></p>
+    </div>
+  </section>
+
+  <section id="game" class="hide">
+    <div class="board-top">
+      <div class="ps" id="ps0"></div>
+      <div class="ps" id="ps1"></div>
+    </div>
+    <div class="table" id="table">
+      <div class="opp" id="opp">
+        <div class="who"><span class="dot" id="oppDot"></span><span id="oppName"></span></div>
+        <div class="opp-hand" id="oppHand"></div>
+      </div>
+      <div class="middle">
+        <div class="pile deck">
+          <button id="deck" type="button" aria-label="Robar del mazo"><div class="cback"></div><span class="count" id="deckCount"></span></button>
+          MAZO
+        </div>
+        <div class="pile">
+          <button id="pile" type="button" aria-label="Levantar del pozo"></button>
+          POZO
+        </div>
+      </div>
+      <div class="status" id="status"></div>
+      <div class="note" id="note" aria-live="polite"></div>
+      <div class="hand" id="hand"></div>
+    </div>
+    <div class="controls">
+      <button class="btn" id="sort" type="button">↕️ Ordenar</button>
+      <button class="btn" id="discard" type="button">⬇️ Tirar</button>
+      <button class="btn primary" id="cut" type="button">✂️ Cortar</button>
+    </div>
+    <p class="tip" id="tip"></p>
+  </section>
+</main>
+
+<div class="modal hide" id="result" role="dialog" aria-modal="true" aria-labelledby="resTitle">
+  <div class="panel">
+    <div class="big-emoji" id="resEmoji">✂️</div>
+    <h2 id="resTitle" style="margin-top:8px"></h2>
+    <p class="muted" id="resSub" style="margin-top:6px"></p>
+    <div class="reveal" id="reveal"></div>
+    <div class="totals" id="totals"></div>
+    <div class="end-actions">
+      <button class="btn primary block" id="next" type="button">Siguiente ronda →</button>
+      <button class="btn primary block hide" id="newmatch" type="button">🔁 Nueva partida</button>
+      <button class="btn ghost block" id="closeRes" type="button">Ver la mesa</button>
+    </div>
+  </div>
+</div>
+
+<script src="/assets/common.js"></script>
+<script src="/assets/chinchon.js"></script>
+</body>
+</html>

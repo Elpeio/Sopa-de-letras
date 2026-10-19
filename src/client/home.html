@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#15121d">
+  <title>Sopa de Letras · Biblioteca de juegos</title>
+  <meta name="description" content="Sopa de Letras: nuestra biblioteca de juegos para jugar solo o de a dos, desde el celular.">
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;700;800;900&display=swap">
+  <link rel="stylesheet" href="/assets/theme.css">
+  <style>
+    .hero { padding: 26px 0 10px; display: grid; gap: 16px; }
+    .hero .tiles { column-gap: 16px; row-gap: 8px; }
+    .tw { display: inline-flex; gap: 6px; }
+    .tw .tile:nth-child(odd) { --t: -3deg; }
+    .tw .tile:nth-child(3n) { --t: 4deg; }
+    .tw .tile { animation: drop .5s backwards cubic-bezier(.3, 1.4, .5, 1); animation-delay: calc(var(--i, 0) * 45ms); }
+    @keyframes drop { from { opacity: 0; transform: translateY(-30px) rotate(-20deg); } }
+    .lead { color: var(--muted); font-size: 17px; max-width: 560px; }
+    .who { display: flex; gap: 10px; align-items: center; padding: 14px; margin: 18px 0 26px; }
+    .who .input { flex: 1; min-width: 0; }
+    .who .face { font-size: 30px; }
+    .games { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 16px; }
+    .game {
+      position: relative; display: flex; flex-direction: column; gap: 12px; padding: 22px; min-height: 260px;
+      border-radius: 22px; border: 1px solid var(--line); text-decoration: none; color: var(--text); overflow: hidden;
+      box-shadow: var(--shadow); transition: transform .18s, border-color .18s;
+    }
+    .game:hover { transform: translateY(-4px); border-color: var(--gold); }
+    .game.sopa { background: linear-gradient(150deg, #4a2b3b, #261d33 70%); }
+    .game.chin { background: linear-gradient(150deg, #1f4a3c, #18262a 70%); }
+    .game .art { height: 92px; display: flex; align-items: center; }
+    .game h2 { font-size: 26px; }
+    .game p { color: var(--muted); font-size: 15px; }
+    .tags { display: flex; gap: 6px; flex-wrap: wrap; }
+    .tag { font-size: 12px; font-weight: 900; padding: 4px 9px; border-radius: 999px; background: #ffffff14; }
+    .tag.first { background: var(--gold); color: #3b2a00; }
+    .game .go { margin-top: auto; font-weight: 900; color: var(--gold); }
+    .mini { display: grid; grid-template-columns: repeat(5, 26px); gap: 4px; transform: rotate(-4deg); }
+    .mini span { aspect-ratio: 1; border-radius: 6px; background: var(--paper); color: var(--ink); font-weight: 900; font-size: 14px; display: grid; place-items: center; }
+    .mini span.h { background: var(--coral); color: #3a130a; }
+    .fan { position: relative; width: 150px; height: 92px; }
+    .fan i {
+      position: absolute; bottom: 0; left: 50px; width: 50px; height: 78px; border-radius: 8px; background: var(--paper);
+      border: 2px solid #fff; box-shadow: 0 6px 12px #0007; transform-origin: 50% 120%; font-style: normal; font-size: 24px;
+      display: grid; place-items: center;
+    }
+    .fan i:nth-child(1) { transform: rotate(-24deg); } .fan i:nth-child(2) { transform: rotate(-8deg); }
+    .fan i:nth-child(3) { transform: rotate(8deg); } .fan i:nth-child(4) { transform: rotate(24deg); }
+    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-top: 26px; }
+    .stat { padding: 14px 16px; border-radius: 16px; border: 1px solid var(--line); background: #ffffff06; }
+    .stat b { display: block; font-size: 26px; font-weight: 900; }
+    .stat span { font-size: 13px; color: var(--muted); font-weight: 700; }
+    .how { margin-top: 26px; display: grid; gap: 10px; }
+    .how ol { margin: 0; padding-left: 20px; color: var(--muted); display: grid; gap: 6px; }
+    footer { text-align: center; color: #8d83a1; font-size: 13px; margin-top: 30px; }
+  </style>
+</head>
+<body>
+<main class="wrap">
+  <div class="topbar">
+    <span class="kicker">Biblioteca de juegos</span>
+    <button class="iconbtn" id="sound" type="button"></button>
+  </div>
+
+  <header class="hero">
+    <div class="tiles" aria-hidden="true">
+      <span class="tw"><span class="tile hot">S</span><span class="tile">O</span><span class="tile">P</span><span class="tile">A</span></span>
+      <span class="tw"><span class="tile cool">D</span><span class="tile">E</span></span>
+      <span class="tw"><span class="tile">L</span><span class="tile">E</span><span class="tile hot">T</span><span class="tile">R</span><span class="tile">A</span><span class="tile cool">S</span></span>
+    </div>
+    <h1 class="sr-only">Sopa de Letras</h1>
+    <p class="lead">Nuestra biblioteca de juegos para jugar solo o de a dos. Elegí uno, mandale el enlace a tu pareja y a jugar, sin instalar nada.</p>
+  </header>
+
+  <div class="panel who">
+    <span class="face" aria-hidden="true">🙂</span>
+    <label for="name" class="sr-only">Tu nombre</label>
+    <input id="name" class="input" maxlength="18" placeholder="¿Quién juega? Escribí tu nombre" autocomplete="nickname">
+  </div>
+
+  <section class="games" aria-label="Juegos">
+    <a class="game sopa" href="/sopa">
+      <div class="art"><div class="mini" aria-hidden="true">
+        <span>G</span><span class="h">S</span><span>M</span><span>R</span><span>A</span>
+        <span>T</span><span class="h">O</span><span>L</span><span>U</span><span>N</span>
+        <span>E</span><span class="h">P</span><span>Z</span><span>B</span><span>Ñ</span>
+      </div></div>
+      <div class="tags"><span class="tag first">★ El primero</span><span class="tag">Solo</span><span class="tag">De a dos</span></div>
+      <h2>Sopa de Letras</h2>
+      <p>Encontrá las palabras escondidas. Contrarreloj en solitario, por turnos o en carrera contra tu pareja. 18 categorías (¡o todas mezcladas!).</p>
+      <span class="go">Jugar →</span>
+    </a>
+    <a class="game chin" href="/chinchon">
+      <div class="art"><div class="fan" aria-hidden="true"><i>🪙</i><i>🏆</i><i>⚔️</i><i>🌿</i></div></div>
+      <div class="tags"><span class="tag">Contra la compu</span><span class="tag">De a dos</span></div>
+      <h2>Chinchón</h2>
+      <p>El clásico con baraja española: armá piernas y escaleras, cortá con 5 o menos y buscá el chinchón.</p>
+      <span class="go">Jugar →</span>
+    </a>
+  </section>
+
+  <section class="stats" id="stats" aria-label="Tus estadísticas en este dispositivo"></section>
+
+  <section class="panel how">
+    <h3>¿Cómo jugar de a dos?</h3>
+    <ol>
+      <li>Entrá a un juego y tocá <b>Crear sala</b>.</li>
+      <li>Compartí el enlace por WhatsApp (o pasale el código de 5 letras).</li>
+      <li>Cuando tu pareja entre, tocá <b>Empezar</b>. Al terminar, pidan la <b>revancha</b> sin salir de la sala.</li>
+    </ol>
+  </section>
+
+  <footer>Sopa de Letras · hecho para jugar juntos 💞</footer>
+</main>
+<script src="/assets/common.js"></script>
+<script>
+  const { $, store, el } = SDL;
+  document.querySelectorAll(".tw .tile").forEach((t, i) => t.style.setProperty("--i", i));
+  SDL.soundToggle($("sound"));
+  const name = $("name");
+  name.value = store.get("name", "");
+  name.addEventListener("input", () => store.set("name", name.value.trim()));
+
+  const s = store.get("stats", {});
+  const best = store.get("sopaBest", {});
+  const bestTimes = Object.values(best).filter(Number.isFinite);
+  const items = [
+    ["🔎", (s.sopa?.solo || 0) + (s.sopa?.duel || 0), "sopas jugadas"],
+    ["🏆", s.sopa?.won || 0, "duelos de sopa ganados"],
+    ["⏱", bestTimes.length ? SDL.fmtTime(Math.min(...bestTimes)) : "—", "mejor tiempo solo"],
+    ["🃏", s.chinchon?.won || 0, "partidas de chinchón ganadas"],
+  ];
+  if (items.some(([, v]) => v && v !== "—")) {
+    $("stats").append(...items.map(([e, v, t]) => el("div", { className: "stat" }, el("b", { textContent: e + " " + v }), el("span", { textContent: t }))));
+  }
+</script>
+</body>
+</html>

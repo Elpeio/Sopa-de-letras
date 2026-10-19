@@ -1,0 +1,47 @@
+// Categorías de la Sopa de Letras. Las palabras van en mayúsculas y sin tildes
+// (la Ñ se conserva) para que coincidan con las letras del tablero.
+
+export interface Category {
+  label: string;
+  emoji: string;
+  words: string[];
+}
+
+const list = (s: string) => s.trim().split(/\s+/);
+
+export const CATEGORIES: Record<string, Category> = {
+  Animales: { label: "Animales", emoji: "🐾", words: list("GATO PERRO TIGRE LEON CEBRA LOBO OSO FOCA PUMA MONO JIRAFA CABALLO CONEJO TORTUGA DELFIN BALLENA AGUILA PINGUINO ARDILLA ZORRO CARPINCHO VACA OVEJA PATO") },
+  Comidas: { label: "Comidas", emoji: "🍕", words: list("PIZZA PASTA ARROZ QUESO SOPA PAN POLLO PAPA TORTA FLAN EMPANADA ASADO MILANESA ÑOQUIS ALFAJOR MATE DULCE HELADO GUISO TARTA FIDEOS LOCRO MEDIALUNA CHURRO") },
+  Deportes: { label: "Deportes", emoji: "⚽", words: list("TENIS FUTBOL RUGBY GOLF BOXEO HOCKEY PADEL NATACION VOLEY BASQUET CICLISMO REMO SURF ESGRIMA KARATE JUDO ATLETISMO POLO SKATE ESQUI") },
+  Musica: { label: "Música", emoji: "🎵", words: list("GUITARRA PIANO VIOLIN TAMBOR FLAUTA CANTO RITMO NOTA BANDA CORO TANGO ROCK JAZZ ACORDE MELODIA BATERIA BAJO DISCO CANCION BANDONEON ARPA") },
+  Naturaleza: { label: "Naturaleza", emoji: "🌳", words: list("ARBOL FLOR RIO MAR NUBE BOSQUE LLUVIA MONTE SOL LUNA HOJA RAIZ SELVA LAGO PLAYA ARENA VIENTO NIEVE VOLCAN CASCADA PRADERA ROCIO") },
+  Paises: { label: "Países", emoji: "🌎", words: list("ARGENTINA CHILE BRASIL PERU MEXICO CANADA ITALIA JAPON URUGUAY ESPAÑA FRANCIA CHINA INDIA EGIPTO GRECIA PARAGUAY BOLIVIA CUBA RUSIA COREA") },
+  Tecnologia: { label: "Tecnología", emoji: "💻", words: list("ROBOT CELULAR TECLADO PANTALLA CODIGO INTERNET MOUSE TABLET DRON WIFI NUBE CHIP CABLE BATERIA PIXEL SERVIDOR CAMARA SATELITE PROGRAMA") },
+  Colores: { label: "Colores", emoji: "🎨", words: list("ROJO AZUL VERDE AMARILLO VIOLETA NARANJA BLANCO NEGRO GRIS ROSA CELESTE DORADO PLATEADO MARRON LILA FUCSIA TURQUESA BORDO OCRE") },
+  Cine: { label: "Cine", emoji: "🎬", words: list("PELICULA CINE ACTOR ACTRIZ DIRECTOR ESCENA CAMARA GUION ESTRENO COMEDIA DRAMA ACCION TERROR SUSPENSO ANIMACION AVENTURA PANTALLA OSCAR POCHOCLO BUTACA") },
+  Viajes: { label: "Viajes", emoji: "✈️", words: list("AVION TREN BARCO AUTO HOTEL PASAPORTE VALIJA MOCHILA MAPA RUTA DESTINO VIAJE TURISMO PLAYA MONTAÑA CIUDAD AEROPUERTO BRUJULA CARPA POSTAL") },
+  Profesiones: { label: "Profesiones", emoji: "👩‍⚕️", words: list("MEDICO DOCENTE ABOGADO PANADERO COCINERO PILOTO BOMBERO POLICIA ACTOR CANTANTE PINTOR ESCRITOR ARQUITECTO INGENIERO DENTISTA CARPINTERO ENFERMERO JARDINERO") },
+  Casa: { label: "Casa", emoji: "🏠", words: list("MESA SILLA CAMA SOFA PUERTA VENTANA PARED TECHO PISO COCINA PATIO JARDIN BALCON ESPEJO LAMPARA CORTINA ALMOHADA HELADERA HORNO ESTANTE") },
+  Espacio: { label: "Espacio", emoji: "🪐", words: list("SOL LUNA MARTE VENUS TIERRA JUPITER SATURNO URANO NEPTUNO ESTRELLA GALAXIA COMETA METEORO ORBITA PLANETA COSMOS COHETE ASTRONAUTA ECLIPSE") },
+  Historia: { label: "Historia", emoji: "🏰", words: list("REY REINA IMPERIO CASTILLO CORONA TRONO BATALLA GUERRA PAZ EDAD SIGLO EPOCA PASADO HISTORIA MUSEO TEMPLO PIRAMIDE FARAON CABALLERO") },
+  Escuela: { label: "Escuela", emoji: "📚", words: list("LIBRO LAPIZ GOMA REGLA CUADERNO MOCHILA AULA CLASE PIZARRON TIZA MAESTRO ALUMNO ESCUELA RECREO TAREA EXAMEN NOTA LETRA CARTUCHERA") },
+  Cuerpo: { label: "Cuerpo", emoji: "🫀", words: list("CABEZA CARA OJO NARIZ BOCA OREJA PELO CUELLO BRAZO MANO DEDO PECHO ESPALDA CINTURA PIERNA RODILLA TOBILLO PIE HOMBRO CODO") },
+  Transportes: { label: "Transportes", emoji: "🚲", words: list("AVION TREN BARCO AUTO CAMION BICICLETA MOTO COLECTIVO SUBTE TAXI TRANVIA LANCHA HELICOPTERO TRACTOR PATINETA VELERO GLOBO") },
+  Amor: { label: "Amor", emoji: "💞", words: list("BESO ABRAZO CARIÑO PAREJA CITA ANILLO FLORES CORAZON TERNURA AMOR CENA VIAJE RISA MIMOS CARTA PROMESA DULZURA SONRISA") },
+};
+
+export const MIXED = "Mezclados";
+
+export function wordsFor(category: string): string[] {
+  const source = category === MIXED
+    ? Object.values(CATEGORIES).flatMap((c) => c.words)
+    : (CATEGORIES[category] ?? CATEGORIES.Animales).words;
+  return [...new Set(source)];
+}
+
+export function categoryList() {
+  return [
+    { key: MIXED, label: "Mezclados", emoji: "🎲" },
+    ...Object.entries(CATEGORIES).map(([key, c]) => ({ key, label: c.label, emoji: c.emoji })),
+  ];
+}
