@@ -32,6 +32,10 @@
     .game:hover { transform: translateY(-4px); border-color: var(--gold); }
     .game.sopa { background: linear-gradient(150deg, #4a2b3b, #261d33 70%); }
     .game.chin { background: linear-gradient(150deg, #1f4a3c, #18262a 70%); }
+    .game.truco { background: linear-gradient(150deg, #4a3a1f, #2a1f26 70%); }
+    .game.truco .fan i { font-size: 20px; font-weight: 900; }
+    .game.truco .fan i b { position: absolute; top: 4px; left: 6px; font-size: 13px; }
+    .game.truco .fan i.sw { color: #2b62a8; } .game.truco .fan i.cl { color: #2e7d3d; } .game.truco .fan i.co { color: #b07d06; } .game.truco .fan i.cu { color: #c4283f; }
     .game .art { height: 92px; display: flex; align-items: center; }
     .game h2 { font-size: 26px; }
     .game p { color: var(--muted); font-size: 15px; }
@@ -73,7 +77,7 @@
       <span class="tw"><span class="tile">L</span><span class="tile">E</span><span class="tile hot">T</span><span class="tile">R</span><span class="tile">A</span><span class="tile cool">S</span></span>
     </div>
     <h1 class="sr-only">Sopa de Letras</h1>
-    <p class="lead">Nuestra biblioteca de juegos para jugar solo o de a dos. Elegí uno, mandale el enlace a tu pareja y a jugar, sin instalar nada.</p>
+    <p class="lead">Nuestra biblioteca de juegos para jugar solo, de a dos o en pareja. Elegí uno, mandale el enlace a los demás y a jugar, sin instalar nada.</p>
   </header>
 
   <div class="panel who">
@@ -99,6 +103,13 @@
       <div class="tags"><span class="tag">Contra la compu</span><span class="tag">De a dos</span></div>
       <h2>Chinchón</h2>
       <p>El clásico con baraja española: armá piernas y escaleras, cortá con 5 o menos y buscá el chinchón.</p>
+      <span class="go">Jugar →</span>
+    </a>
+    <a class="game truco" href="/truco">
+      <div class="art"><div class="fan" aria-hidden="true"><i class="sw"><b>1</b>🗡️</i><i class="cl"><b>1</b>🪵</i><i class="sw"><b>7</b>🗡️</i><i class="co"><b>7</b>🪙</i></div></div>
+      <div class="tags"><span class="tag first">★ Nuevo</span><span class="tag">Contra la compu</span><span class="tag">1 vs 1</span><span class="tag">2 vs 2</span></div>
+      <h2>Truco</h2>
+      <p>Envido, truco, retruco y vale cuatro. Con flor y paraguayana si querés, a 15 o a 30, mano a mano o en pareja con señas.</p>
       <span class="go">Jugar →</span>
     </a>
   </section>
@@ -133,6 +144,7 @@
     ["🏆", s.sopa?.won || 0, "duelos de sopa ganados"],
     ["⏱", bestTimes.length ? SDL.fmtTime(Math.min(...bestTimes)) : "—", "mejor tiempo solo"],
     ["🃏", s.chinchon?.won || 0, "partidas de chinchón ganadas"],
+    ["🎴", s.truco?.won || 0, "partidas de truco ganadas"],
   ];
   if (items.some(([, v]) => v && v !== "—")) {
     $("stats").append(...items.map(([e, v, t]) => el("div", { className: "stat" }, el("b", { textContent: e + " " + v }), el("span", { textContent: t }))));

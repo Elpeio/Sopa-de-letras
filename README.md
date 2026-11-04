@@ -7,6 +7,7 @@ como el primer juego que tuvo: la **Sopa de Letras**.
 |---|---|---|
 | 🔎 **Sopa de Letras** | Contrarreloj con pistas y récords | Por turnos (con reloj) o carrera simultánea, con revancha y serie |
 | 🃏 **Chinchón** | Contra la compu | Sala por enlace, partidas a 50 o 100 |
+| 🎴 **Truco** | Contra la compu, 1 vs 1 o 2 vs 2 | Sala por enlace (los lugares vacíos los ocupa la compu), a 15 o 30, con flor y paraguayana opcionales, señas en pareja |
 
 ## Estructura
 
@@ -15,6 +16,7 @@ src/
   server.ts        servidor Bun (HTTP + WebSocket)
   sopa.ts          lógica y salas de la Sopa de Letras
   chinchon.ts      lógica, salas y bot del Chinchón
+  truco.ts         reglas, salas y bot del Truco (envido, truco, flor, paraguayana)
   words.ts         categorías y palabras
   rooms.ts         códigos de sala, limpieza de salas viejas
   client/          páginas, estilos y scripts del navegador

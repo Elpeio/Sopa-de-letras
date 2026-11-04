@@ -3,6 +3,7 @@
 import homeHtml from "./client/home.html" with { type: "text" };
 import sopaHtml from "./client/sopa.html" with { type: "text" };
 import chinchonHtml from "./client/chinchon.html" with { type: "text" };
+import trucoHtml from "./client/truco.html" with { type: "text" };
 import themeCss from "./client/theme.css" with { type: "text" };
 // @ts-ignore: texto plano, no un módulo
 import commonJs from "./client/common.js" with { type: "text" };
@@ -10,9 +11,12 @@ import commonJs from "./client/common.js" with { type: "text" };
 import sopaJs from "./client/sopa.js" with { type: "text" };
 // @ts-ignore: texto plano, no un módulo
 import chinchonJs from "./client/chinchon.js" with { type: "text" };
+// @ts-ignore: texto plano, no un módulo
+import trucoJs from "./client/truco.js" with { type: "text" };
 import { type SockData } from "./rooms";
 import { sopaClose, sopaMessage } from "./sopa";
 import { chinchonClose, chinchonMessage } from "./chinchon";
+import { trucoClose, trucoMessage } from "./truco";
 import { categoryList } from "./words";
 
 const html = (body: string) => new Response(body, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-cache" } });
@@ -25,14 +29,15 @@ const pages: Record<string, string> = {
   "/": text(homeHtml),
   "/sopa": text(sopaHtml).replace("__CATEGORIES__", JSON.stringify(categoryList())),
   "/chinchon": text(chinchonHtml),
+  "/truco": text(trucoHtml),
 };
 
 const server = Bun.serve<SockData>({
   port: Number(Bun.env.PORT || 3000),
   fetch(req, server) {
     const { pathname } = new URL(req.url);
-    if (pathname === "/ws" || pathname === "/cards") {
-      const game = pathname === "/cards" ? "chinchon" : "sopa";
+    if (pathname === "/ws" || pathname === "/cards" || pathname === "/mesa") {
+      const game = pathname === "/cards" ? "chinchon" : pathname === "/mesa" ? "truco" : "sopa";
       if (server.upgrade(req, { data: { game, seat: -1 } })) return;
       return new Response("Se necesita WebSocket", { status: 400 });
     }
@@ -41,6 +46,7 @@ const server = Bun.serve<SockData>({
       case "/assets/common.js": return asset(commonJs, "text/javascript");
       case "/assets/sopa.js": return asset(sopaJs, "text/javascript");
       case "/assets/chinchon.js": return asset(chinchonJs, "text/javascript");
+      case "/assets/truco.js": return asset(trucoJs, "text/javascript");
       case "/icon.svg": return asset(icon, "image/svg+xml");
       case "/health": return new Response("ok");
     }
@@ -54,10 +60,12 @@ const server = Bun.serve<SockData>({
       if (!m || typeof m !== "object") return;
       if (m.action === "ping") return;
       if (ws.data.game === "chinchon") chinchonMessage(ws, m);
+      else if (ws.data.game === "truco") trucoMessage(ws, m);
       else sopaMessage(ws, m);
     },
     close(ws) {
       if (ws.data.game === "chinchon") chinchonClose(ws);
+      else if (ws.data.game === "truco") trucoClose(ws);
       else sopaClose(ws);
     },
   },

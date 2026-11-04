@@ -1,6 +1,6 @@
 import type { ServerWebSocket } from "bun";
 
-export interface SockData { game: "sopa" | "chinchon"; code?: string; seat: number; token?: string }
+export interface SockData { game: "sopa" | "chinchon" | "truco"; code?: string; seat: number; token?: string }
 export type Sock = ServerWebSocket<SockData>;
 
 const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";

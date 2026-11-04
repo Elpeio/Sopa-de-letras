@@ -41,7 +41,7 @@ describe("páginas", () => {
   test("la biblioteca se llama Sopa de Letras", async () => {
     const html = await (await fetch(`http://localhost:${PORT}/`)).text();
     expect(html).toContain("<title>Sopa de Letras");
-    for (const p of ["/sopa", "/chinchon", "/assets/theme.css", "/assets/common.js", "/assets/sopa.js", "/assets/chinchon.js", "/icon.svg"]) {
+    for (const p of ["/sopa", "/chinchon", "/truco", "/assets/theme.css", "/assets/common.js", "/assets/sopa.js", "/assets/chinchon.js", "/assets/truco.js", "/icon.svg"]) {
       expect((await fetch(`http://localhost:${PORT}${p}`)).status).toBe(200);
     }
   });
@@ -148,6 +148,58 @@ describe("chinchón por WebSocket", () => {
     expect(st.hand.length).toBe(7);
     expect(st.oppCount).toBe(7);
     a.ws.close(); b.ws.close();
+  });
+});
+
+describe("truco por WebSocket", () => {
+  test("contra la compu 1 vs 1: repartir, jugar una carta y que el bot conteste", async () => {
+    const a = new Client("/mesa");
+    await a.ready();
+    a.send({ action: "bot", name: "Ana", token: "t1", size: 2, target: 15, flor: true, paraguayana: true });
+    let st = (await a.next((m) => m.type === "trucoState")).state;
+    expect(st.started).toBe(true);
+    expect(st.size).toBe(2);
+    expect(st.target).toBe(15);
+    expect(st.opts).toEqual({ flor: true, paraguayana: true });
+    expect(st.hand.mine.length).toBe(3);
+    expect(st.hand.counts).toEqual([3, 3]);
+    expect(st.hand.actions).toContain("play");
+    a.send({ action: "play", id: st.hand.mine[0].id });
+    st = (await a.next((m) => m.type === "trucoState" && m.state.hand.mine.length === 2)).state;
+    expect(st.hand.tricks[0].length).toBe(1);
+    // El bot juega (o canta) solo.
+    st = (await a.next((m) => m.type === "trucoState" && (m.state.hand.tricks[0].length === 2 || m.state.hand.pending), 5000)).state;
+    expect(st.hand.counts[1] === 2 || st.hand.pending?.team === 0).toBe(true);
+    a.send({ action: "play", id: 999 });
+    expect((await a.next((m) => m.type === "error")).message).toBeTruthy();
+    a.ws.close();
+  });
+
+  test("2 vs 2 con gente: sala, unirse, completar con la compu y señas", async () => {
+    const a = new Client("/mesa"), b = new Client("/mesa");
+    await Promise.all([a.ready(), b.ready()]);
+    a.send({ action: "create", name: "Ana", token: "u1", size: 4, target: 30 });
+    const j = await a.next((m) => m.type === "trucoJoined");
+    b.send({ action: "join", code: j.code, name: "Beto", token: "u2" });
+    let st = (await b.next((m) => m.type === "trucoState")).state;
+    expect(st.names).toEqual(["Ana", "Beto", null, null]);
+    expect(st.started).toBe(false);
+    a.send({ action: "start" });
+    st = (await b.next((m) => m.type === "trucoState" && m.state.started)).state;
+    expect(st.bots).toEqual([false, false, true, true]);
+    expect(st.names[2]).toContain("🤖");
+    expect(st.hand.mine.length).toBe(3);
+    // Una seña de Beto no llega a Ana (es su rival), sí llegaría a su compañero.
+    b.send({ action: "sign", kind: "😉" });
+    await Bun.sleep(150);
+    expect(a.inbox.some((m) => m.type === "trucoSign")).toBe(false);
+    // Reconexión a la misma silla.
+    b.ws.close();
+    const b2 = new Client("/mesa");
+    await b2.ready();
+    b2.send({ action: "join", code: j.code, token: "u2" });
+    expect((await b2.next((m) => m.type === "trucoJoined")).seat).toBe(1);
+    a.ws.close(); b2.ws.close();
   });
 });
 
