@@ -36,7 +36,13 @@
   let st = null, seat = -1, pending = null, chosen = null;
   // En la versión empaquetada (artifact) el servidor corre dentro de la página: sólo contra la compu.
   const local = !!window.TrucoLocal;
-  if (local) { session.set("trucoRoom", null); document.body.classList.add("local"); mode.set("bot"); }
+  if (local) {
+    session.set("trucoRoom", null);
+    document.body.classList.add("local");
+    mode.set("bot");
+    $("modeChoices").previousElementSibling.classList.add("hide");
+    document.querySelectorAll("#setup .step:not(.hide) b").forEach((b, i) => (b.textContent = i + 1));
+  }
   const rejoin = session.get("trucoRoom");
   const net = (local ? window.TrucoLocal : SDL).connect("/mesa", {
     onOpen() {

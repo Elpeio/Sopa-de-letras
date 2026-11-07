@@ -25,7 +25,7 @@ html = html.replace("</style>", `
     html, body { color-scheme: dark; }
     main.wrap { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 18px 48px; }
     @media (max-width: 560px) { main.wrap { padding-left: max(8px, env(safe-area-inset-left, 0px)); padding-right: max(8px, env(safe-area-inset-right, 0px)); padding-block: 10px 30px; } }
-    body.local .back, body.local #modeChoices, body.local .divider, body.local .divider + .row, body.local #result a.btn, body.local .step:nth-of-type(2) { display: none !important; }
+    body.local .back, body.local #modeChoices, body.local .divider, body.local .divider + .row, body.local #result a.btn{ display: none !important; }
     body.local .topbar::before { content: "Sopa de Letras · biblioteca"; font-size: 12px; letter-spacing: .16em; text-transform: uppercase; color: var(--gold); font-weight: 900; }
   </style>`);
 await Bun.write("dist/truco.html", html);
