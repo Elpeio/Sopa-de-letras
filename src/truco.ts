@@ -106,7 +106,10 @@ export interface TrucoRoom {
   sockets: Set<Sock>;
   touched: number;
   botSeq: number;
+  hints: Record<number, string[]>;
+  signTimers: ReturnType<typeof setTimeout>[];
   timer?: ReturnType<typeof setTimeout>;
+  timer2?: ReturnType<typeof setTimeout>;
   nextTimer?: ReturnType<typeof setTimeout>;
 }
 
@@ -137,6 +140,7 @@ export function deal(r: TrucoRoom, keepMano = false) {
   };
   r.started = true;
   event(r, { kind: "deal", seat: mano });
+  botSigns(r);
 }
 
 /** Qué puede hacer cada silla en este momento. Sirve para validar y para dibujar los botones. */
@@ -426,24 +430,85 @@ export function emit(r: TrucoRoom) {
 
 // --- Bot ----------------------------------------------------------------------------
 
-/** Fuerza de la mano para el truco, entre 0 y 1, mirando cómo viene la mano. */
+/** Cada compu tiene su carácter: cuánto miente y cuánto se la juega. */
+interface Persona { bluff: number; bold: number }
+const PERSONAS: Record<string, Persona> = { "Cacho 🤖": { bluff: 0.3, bold: 0.6 }, "Nelly 🤖": { bluff: 0.12, bold: 0.45 }, "Tito 🤖": { bluff: 0.22, bold: 0.8 } };
+const personaOf = (r: TrucoRoom, i: number): Persona => PERSONAS[r.names[i] ?? ""] ?? { bluff: 0.18, bold: 0.55 };
+const SIGN_FOR: Record<number, string> = { 14: "😉", 13: "😜", 12: "😏", 11: "🙃", 10: "😬", 9: "😘", 8: "🤨" };
+const SAY = {
+  win: ["¡Esa!", "Tomá", "Así se juega", "De taquito", "Vamos todavía"],
+  lose: ["Qué mala suerte…", "La próxima", "Uf", "Me mataron", "Tenían con qué"],
+  bluffTruco: ["No tenía nada 😏", "¡Puro verso!", "Mentira, mentira", "Si sabías…"],
+  strong: ["Vení que te espero", "Tengo con qué", "Dale, dale"],
+  parda: ["Parda…", "Empardamos"],
+  thanks: ["👌", "Entendido", "Dejámelo a mí"],
+};
+const pick = (xs: string[]) => xs[Math.floor(Math.random() * xs.length)];
+function say(r: TrucoRoom, i: number, text: string, chance = 1) {
+  if (Math.random() > chance) return;
+  const h = r.hand;
+  r.timer2 = setTimeout(() => { if (r.hand === h) { event(r, { kind: "say", seat: i, text }); emit(r); } }, 700 + Math.random() * 600);
+}
+
+/** Después de repartir, la compu le hace señas de sus mejores cartas a su compañero de carne y hueso. */
+function botSigns(r: TrucoRoom) {
+  for (const t of r.signTimers) clearTimeout(t);
+  r.signTimers = [];
+  r.hints = {};
+  if (r.size !== 4 || !r.hand) return;
+  const h = r.hand;
+  for (let i = 0; i < 4; i++) {
+    const partner = (i + 2) % 4;
+    if (!r.bots[i] || r.bots[partner]) continue;
+    const cards = h.dealt[i];
+    const kinds = [...cards].sort((a, b) => power(b) - power(a)).map((c) => SIGN_FOR[power(c)]).filter(Boolean).slice(0, 2);
+    if (envidoOf(cards) >= 28) kinds.push("🙌");
+    if (!kinds.length) kinds.push("😑");
+    kinds.forEach((kind, k) => r.signTimers.push(setTimeout(() => {
+      if (r.hand !== h) return;
+      for (const ws of r.sockets) if (ws.data.seat === partner) sendTo(ws, { type: "trucoSign", from: i, kind });
+    }, 1500 + k * 1600 + Math.random() * 500)));
+  }
+}
+
+/** Lo que la compu sabe de su compañero: sus cartas si también es compu, o las señas que le hizo el humano. */
+function teamInfo(r: TrucoRoom, i: number) {
+  const h = r.hand!;
+  const partner = (i + 2) % 4;
+  let best = 0, envido = 0;
+  if (r.size === 4 && r.bots[partner]) {
+    best = Math.max(0, ...h.cards[partner].map(power));
+    envido = envidoOf(h.dealt[partner]);
+  } else if (r.size === 4) {
+    for (const k of r.hints[i] ?? []) {
+      const p = Number(Object.keys(SIGN_FOR).find((x) => SIGN_FOR[Number(x)] === k) ?? 0);
+      best = Math.max(best, p);
+      if (k === "🙌") envido = Math.max(envido, 29);
+    }
+  }
+  return { best, envido };
+}
+
+/** Fuerza de la mano para el truco, entre 0 y 1, mirando cómo viene la mano y qué tiene el compañero. */
 function trucoStrength(r: TrucoRoom, i: number) {
   const h = r.hand!;
   const team = teamOf(i);
   const cards = [...h.cards[i]].sort((a, b) => power(b) - power(a));
   if (!cards.length) return 0;
+  const info = teamInfo(r, i);
   const p = cards.map((c) => power(c) / 14);
   let s = cards.length >= 2 ? p[0] * 0.65 + p[1] * 0.35 : p[0];
+  if (info.best / 14 > p[0]) s = s * 0.5 + (info.best / 14) * 0.5;
+  else if (info.best >= 9) s += 0.08;
   const won = h.trickWinner.filter((w) => w === team).length, lost = h.trickWinner.filter((w) => w >= 0 && w !== team).length;
-  s += won * 0.18 - lost * 0.18;
-  // Si en la baza actual ya estamos ganando con lo jugado, mejor todavía.
+  s += won * 0.2 - lost * 0.2;
   const plays = h.tricks[h.trick];
   if (plays.length) {
     const top = Math.max(...plays.map((x) => power(x.card)));
     const ours = plays.some((x) => teamOf(x.seat) === team && power(x.card) === top);
     const theirs = plays.some((x) => teamOf(x.seat) !== team && power(x.card) === top);
     if (ours && !theirs) s += 0.12;
-    else if (theirs && !cards.some((c) => power(c) > top)) s -= 0.25;
+    else if (theirs && !cards.some((c) => power(c) > top)) s -= 0.3;
   }
   return Math.max(0, Math.min(1, s));
 }
@@ -454,43 +519,58 @@ function chooseCard(r: TrucoRoom, i: number): Card {
   const cards = [...h.cards[i]].sort((a, b) => power(a) - power(b));
   const plays = h.tricks[h.trick];
   const low = cards[0], high = cards[cards.length - 1];
+  const strong = cards.filter((c) => power(c) >= 9).length;
   if (!plays.length) {
-    if (h.trick === 0) return power(high) >= 12 && cards.length === 3 && power(cards[1]) >= 8 ? cards[1] : low;
+    if (h.trick === 0) {
+      if (strong >= 2) return low; // guardo las bravas para la segunda y la tercera
+      if (strong === 1) return cards.length === 3 ? cards[1] : low; // tanteo con la del medio
+      return high; // sin nada: trato de ganar la primera
+    }
     return high;
   }
   const bestOf = (mine: boolean) => Math.max(-1, ...plays.filter((x) => (teamOf(x.seat) === team) === mine).map((x) => power(x.card)));
   const ours = bestOf(true), theirs = bestOf(false);
-  if (ours > theirs) return low;
+  if (ours > theirs) return low; // el compañero va ganando
   const beating = cards.filter((c) => power(c) > theirs);
-  if (beating.length) return beating[0];
   const tie = cards.find((c) => power(c) === theirs);
-  if (tie && h.trick === 0 && teamOf(h.mano) === team) return tie;
+  if (beating.length) {
+    // En la primera, si ganar me cuesta mi única brava y puedo empardar siendo mano, empardo.
+    if (h.trick === 0 && tie && power(beating[0]) >= 12 && strong === 1 && teamOf(h.mano) === team) return tie;
+    return beating[0];
+  }
+  if (tie) return tie; // empardar nunca es peor que perder
   return low;
 }
 
-function botChoice(r: TrucoRoom, i: number): any {
+export function botChoice(r: TrucoRoom, i: number): any {
   const h = r.hand!;
   const acts = actionsFor(r, i);
   const team = teamOf(i);
-  const env = envidoOf(h.dealt[i]);
+  const me = personaOf(r, i);
+  const info = teamInfo(r, i);
+  const env = Math.max(envidoOf(h.dealt[i]), info.envido);
   const edge = teamOf(h.mano) === team ? 0 : 1;
   const rnd = Math.random();
+  const bluff = rnd < me.bluff;
+  const behind = r.scores[team] + 5 < r.scores[1 - team];
+  const closing = r.target - r.scores[1 - team] <= 3; // el rival está por ganar: a jugársela
   if (acts.includes("paraguayana")) return { action: "paraguayana" };
   if (acts.includes("flor")) return { action: "flor" };
   if (h.pending) {
     if (h.pending.kind === "envido") {
-      if (env >= 33 && acts.includes("F") && rnd < 0.5) return { action: "F" };
+      if (env >= 33 && acts.includes("F") && rnd < 0.6) return { action: "F" };
       if (env >= 31 && acts.includes("R")) return { action: "R" };
       if (env >= 29 && acts.includes("E")) return { action: "E" };
-      if (env >= 27 + edge || (env >= 24 + edge && rnd < 0.35)) return { action: "quiero" };
+      if (bluff && env >= 24 && acts.includes("E")) return { action: "E" }; // subo de verso
+      if (env >= 27 + edge || (env >= 24 + edge && rnd < 0.45) || (closing && env >= 23)) return { action: "quiero" };
       return { action: "noquiero" };
     }
     if (h.pending.kind === "truco") {
-      if (acts.includes("E") && env >= 28) return { action: env >= 32 ? "R" : "E" };
+      if (acts.includes("E") && (env >= 28 || (bluff && env >= 23))) return { action: env >= 32 ? "R" : "E" };
       const s = trucoStrength(r, i);
       const raise = acts.find((a) => a === "retruco" || a === "vale4");
-      if (raise && s >= 0.8) return { action: raise };
-      if (s >= 0.45 || rnd < 0.12) return { action: "quiero" };
+      if (raise && (s >= 0.78 || (bluff && s >= 0.4 && rnd < me.bold))) return { action: raise };
+      if (s >= 0.45 || (s >= 0.25 && rnd < me.bold * 0.5) || closing || (behind && rnd < 0.4)) return { action: "quiero" };
       return { action: "noquiero" };
     }
     if (h.pending.kind === "flor") {
@@ -502,28 +582,33 @@ function botChoice(r: TrucoRoom, i: number): any {
     }
   }
   if (acts.includes("E")) {
-    if (env >= 33 && rnd < 0.4) return { action: "F" };
+    if (env >= 33 && (rnd < 0.5 || closing)) return { action: "F" };
     if (env >= 31) return { action: rnd < 0.5 ? "R" : "E" };
-    if (env >= 27 + edge || (env >= 23 && rnd < 0.3) || rnd < 0.06) return { action: "E" };
+    if (env >= 27 + edge || (env >= 24 && rnd < 0.35) || (bluff && env >= 18)) return { action: "E" };
   }
+  const s = trucoStrength(r, i);
   const trucoAct = acts.find((a) => a === "truco" || a === "retruco" || a === "vale4");
   if (trucoAct) {
-    const s = trucoStrength(r, i);
-    const threshold = trucoAct === "truco" ? 0.6 : trucoAct === "retruco" ? 0.74 : 0.88;
-    if (s >= threshold || rnd < 0.07) return { action: trucoAct };
+    const threshold = (trucoAct === "truco" ? 0.58 : trucoAct === "retruco" ? 0.74 : 0.88) - (behind ? 0.08 : 0);
+    const wonFirst = h.trickWinner[0] === team;
+    // Canta con cartas, cuando ya ganó la primera con algo decente, o de mentira.
+    if (s >= threshold || (trucoAct === "truco" && wonFirst && s >= 0.4) || (bluff && trucoAct === "truco" && (h.trick > 0 || rnd < me.bluff * 2))) return { action: trucoAct };
   }
+  // Irse al mazo cuando ya está perdida y no hay nada que defender.
+  if (acts.includes("mazo") && h.trickWinner[0] >= 0 && h.trickWinner[0] !== team && s < 0.18 && h.truco.level === 0 && rnd < 0.5) return { action: "mazo" };
   if (acts.includes("play")) return { action: "play", id: chooseCard(r, i).id };
   return null;
 }
 
 /** Elige qué bot debería actuar ahora, si alguno. */
-function botSeat(r: TrucoRoom): number {
+export function botSeat(r: TrucoRoom): number {
   const h = r.hand;
   if (!h || h.ended || r.over) return -1;
   for (let i = 0; i < r.size; i++) if (r.bots[i] && actionsFor(r, i).includes("paraguayana")) return i;
   if (h.pending) {
     const team = h.pending.team;
-    if (h.pending.kind !== "flor" && teamHasHuman(r, team)) return -1;
+    if (h.pending.kind === "flor") return seatsOf(r, team).find((i) => r.bots[i] && actionsFor(r, i).includes("florquiero")) ?? -1;
+    if (teamHasHuman(r, team)) return -1;
     return seatsOf(r, team).find((i) => r.bots[i] && actionsFor(r, i).length) ?? -1;
   }
   return r.bots[h.turn] ? h.turn : -1;
@@ -538,7 +623,20 @@ export function botTurn(r: TrucoRoom) {
     if (seq !== r.botSeq || botSeat(r) !== i) return;
     const choice = botChoice(r, i);
     if (!choice) return;
+    const h = r.hand!;
+    const before = { strength: trucoStrength(r, i), env: envidoOf(h.dealt[i]) };
     act(r, i, choice);
+    // Comentarios de la compu: festeja, se lamenta y confiesa las mentiras que le salieron bien.
+    if (h.ended && h.result && h.result.reason !== "over") {
+      const won = h.result.team === teamOf(i);
+      if (h.result.reason === "noquiero" && won && before.strength < 0.35) say(r, i, pick(SAY.bluffTruco), 0.85);
+      else say(r, i, pick(won ? SAY.win : SAY.lose), 0.35);
+    } else if (choice.action === "noquiero" && h.envidoResult && !h.envidoResult.accepted && h.envido.by !== i && false) {
+      // (el envido no querido lo canta el rival: nada que confesar)
+    } else if (["truco", "retruco", "vale4"].includes(choice.action) && before.strength >= 0.75) say(r, i, pick(SAY.strong), 0.3);
+    if (h.envidoResult && !h.envidoResult.accepted && h.envidoResult.team === teamOf(i) && h.envido.by === i && before.env < 24 && choice.action !== "quiero") {
+      // (sólo si el rival no quiso el envido que cantó de verso)
+    }
     emit(r);
     botTurn(r);
   }, BOT_DELAY + Math.random() * 700);
@@ -556,7 +654,7 @@ function newRoom(m: any, size: 2 | 4, vsBot: boolean): TrucoRoom {
     code, size, names, tokens: [String(m.token), ...Array(size - 1).fill(null)], bots,
     opts: { flor: !!m.flor, paraguayana: !!m.paraguayana }, target: TARGETS.includes(m.target) ? m.target : 30,
     scores: [0, 0], wins: [0, 0], started: false, over: false, winner: -1, hand: null, handCount: 0, events: [],
-    sockets: new Set(), touched: Date.now(), botSeq: 0,
+    sockets: new Set(), touched: Date.now(), botSeq: 0, hints: {}, signTimers: [],
   };
   trucoRooms.set(code, r);
   return r;
@@ -622,9 +720,14 @@ export function trucoMessage(ws: Sock, m: any) {
       return;
     }
     case "sign": {
-      // Señas: sólo las ve el compañero.
+      // Señas: sólo las ve el compañero. Si el compañero es la compu, las tiene en cuenta.
       if (r.size !== 4) return;
-      for (const peer of r.sockets) if (peer.data.seat === (i + 2) % 4) sendTo(peer, { type: "trucoSign", from: i, kind: String(m.kind).slice(0, 12) });
+      const partner = (i + 2) % 4, kind = String(m.kind).slice(0, 12);
+      if (r.bots[partner]) {
+        (r.hints[partner] ??= []).push(kind);
+        const h = r.hand;
+        r.signTimers.push(setTimeout(() => { if (r.hand === h) for (const ws of r.sockets) if (ws.data.seat === i) sendTo(ws, { type: "trucoSign", from: partner, kind: "👌" }); }, 900));
+      } else for (const peer of r.sockets) if (peer.data.seat === partner) sendTo(peer, { type: "trucoSign", from: i, kind });
       return;
     }
     case "chat": {

@@ -69,7 +69,7 @@ function room(size: 2 | 4, opts = { flor: true, paraguayana: true }): TrucoRoom 
   const r: TrucoRoom = {
     code: "TEST1", size, names: Array.from({ length: size }, (_, i) => "J" + i), tokens: [], bots: Array(size).fill(false),
     opts, target: 30, scores: [0, 0], wins: [0, 0], started: false, over: false, winner: -1, hand: null, handCount: 0, events: [],
-    sockets: new Set(), touched: 0, botSeq: 0,
+    sockets: new Set(), touched: 0, botSeq: 0, hints: {}, signTimers: [],
   };
   deal(r);
   return r;

@@ -111,15 +111,21 @@
     /* Cartas jugadas */
     .played { position: absolute; width: 56px; height: 84px; z-index: 2; }
     .played.pos-bottom { left: 50%; bottom: 10%; transform: translateX(-50%); }
-    .played.pos-top { left: 50%; top: 20%; transform: translateX(-50%); }
-    .played.pos-left { left: 24%; top: 50%; transform: translateY(-50%); }
-    .played.pos-right { right: 24%; top: 50%; transform: translateY(-50%); }
-    .table.two .played.pos-top { top: 24%; }
+    .played.pos-top { left: 50%; top: 28%; transform: translateX(-50%); }
+    .played.pos-left { left: 24%; top: 52%; transform: translateY(-50%); }
+    .played.pos-right { right: 24%; top: 52%; transform: translateY(-50%); }
+    .table.two .played.pos-top { top: 30%; }
     .table.two .played.pos-bottom { bottom: 14%; }
-    .played .card { position: absolute; left: 0; top: 0; width: 56px; height: 84px; cursor: default; transform: translate(calc(var(--k) * 16px - 16px), calc(var(--k) * -3px)) rotate(calc(var(--k) * 7deg - 7deg)); z-index: var(--k); transition: transform .45s cubic-bezier(.2, .9, .3, 1), box-shadow .3s, filter .3s; }
+    /* Cada carta jugada se apoya al lado de la anterior, corrida hacia el centro de la mesa; la última queda arriba. */
+    .played { --dx: 20px; --dy: 0px; }
+    .played.pos-right { --dx: -20px; }
+    .played.pos-top { --dy: 10px; }
+    .played.pos-bottom { --dy: -10px; }
+    .played .card { position: absolute; left: 0; top: 0; width: 56px; height: 84px; cursor: default; transform: translate(calc(var(--k) * var(--dx)), calc(var(--k) * var(--dy))); z-index: var(--k); transition: transform .45s cubic-bezier(.2, .9, .3, 1), box-shadow .3s, filter .3s; }
+    .played .card.old { filter: brightness(.7); }
     .played .card.fly { transition: none; }
     .played .card.win { box-shadow: 0 0 0 3px var(--gold), 0 0 22px var(--gold), 0 5px 10px #0006; z-index: 10; }
-    .played .card.lose { filter: brightness(.72); }
+    .played .card.lose { filter: brightness(.6); }
     .played .card .n { font-size: 15px; top: 3px; left: 5px; } .played .card .n2 { font-size: 15px; bottom: 3px; right: 5px; } .played .card .s { font-size: 24px; } .played .card .f { display: none; }
     .status { position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%); z-index: 4; max-width: 72%; padding: 5px 12px; border-radius: 999px; background: #0b291cc8; text-align: center; font-weight: 900; font-size: 13px; color: #d6efe4; pointer-events: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: color .2s; }
     .status:empty { display: none; }
@@ -176,6 +182,7 @@
     .signs button { font: inherit; border: 1px solid var(--line); background: #ffffff08; border-radius: 999px; width: 44px; height: 44px; padding: 0; font-size: 24px; line-height: 1; cursor: pointer; transition: transform .12s, background .15s; }
     .signs button:active { transform: scale(.9); background: #ffffff18; }
     .bubble.sign { font-size: 34px; padding: 6px 12px; line-height: 1.1; }
+    .bubble.say { font-size: 14px; font-weight: 800; font-style: italic; color: #4a3d5c; background: #f3eee2; }
     .ticker { text-align: center; margin-top: 10px; font-size: 13px; color: var(--muted); min-height: 20px; }
     .ticker b { color: var(--text); }
 

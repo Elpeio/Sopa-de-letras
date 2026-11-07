@@ -106,7 +106,8 @@
   // ---------- Geometría de la mesa ----------
   const myTeam = () => seat % 2;
   const rel = (s) => (s - seat + st.size) % st.size;
-  const POS = { 2: ["bottom", "top"], 4: ["bottom", "left", "top", "right"] };
+  // La mano va hacia la derecha: el que sigue se sienta a mi derecha.
+  const POS = { 2: ["bottom", "top"], 4: ["bottom", "right", "top", "left"] };
   const posOf = (s) => POS[st.size][rel(s)];
   const isUs = (s) => s % 2 === myTeam();
   const nameOf = (s) => (s === seat ? "Vos" : st.names[s] || "Jugador " + (s + 1));
@@ -183,6 +184,9 @@
       } else if (e.kind === "flor") {
         later(() => { bubble("center", `🌸 Flor: ${teamName(e.team)} +${e.points}`); sound(isUs(e.team) ? "ok" : "bad"); }, delay + 500);
         delay += 900;
+      } else if (e.kind === "say") {
+        later(() => bubble(e.seat, e.text, "say"), delay);
+        delay += 300;
       } else if (e.kind === "paraguayana") {
         later(() => { bubble(e.seat, e.text, "big"); toast("Cartas malas: se reparte de nuevo 🔁"); sound("bad"); }, delay);
         delay += 600;
@@ -343,6 +347,7 @@
         node.style.setProperty("--k", perSeat[s][i].k);
         node.classList.toggle("win", winners.has(perSeat[s][i].id));
         node.classList.toggle("lose", losers.has(perSeat[s][i].id));
+        node.classList.toggle("old", perSeat[s][i].k < h.trick - (h.tricks[h.trick]?.length ? 0 : 1) && !h.ended);
       });
     }
   }
@@ -406,9 +411,9 @@
     const buttons = acts.map((a) => el("button", { className: "btn " + (KIND[a] || "") + (lastActionsKey && ["quiero", "noquiero"].includes(a) ? " shout" : ""), type: "button", textContent: LABEL[a], onclick: () => { sound("tick"); net.send({ action: a }); } }));
     if (h.actions.includes("play") && chosen !== null) buttons.unshift(el("button", { className: "btn primary", type: "button", textContent: "🃏 Jugar " + cardName(h.mine.find((c) => c.id === chosen)), onclick: () => play(chosen) }));
     box.replaceChildren(...buttons);
-    const partnerHuman = st.size === 4 && !st.bots[(seat + 2) % 4];
-    $("signs").classList.toggle("hide", !partnerHuman || h.ended);
-    if (partnerHuman && !$("signs").children.length) {
+    const hasPartner = st.size === 4;
+    $("signs").classList.toggle("hide", !hasPartner || h.ended);
+    if (hasPartner && !$("signs").children.length) {
       $("signs").append(...SIGNS.map(([e, t]) => el("button", { type: "button", textContent: e, ariaLabel: "Seña: " + t, onclick: () => { net.send({ action: "sign", kind: e }); toast("Seña enviada " + e); sound("tick"); } })));
     }
     const tip = $("ticker");
