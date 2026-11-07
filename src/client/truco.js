@@ -34,8 +34,11 @@
 
   // ---------- Conexión ----------
   let st = null, seat = -1, pending = null, chosen = null;
+  // En la versión empaquetada (artifact) el servidor corre dentro de la página: sólo contra la compu.
+  const local = !!window.TrucoLocal;
+  if (local) { session.set("trucoRoom", null); document.body.classList.add("local"); mode.set("bot"); }
   const rejoin = session.get("trucoRoom");
-  const net = SDL.connect("/mesa", {
+  const net = (local ? window.TrucoLocal : SDL).connect("/mesa", {
     onOpen() {
       if (pending) { net.send(pending); pending = null; }
       else if (session.get("trucoRoom")) net.send({ action: "join", code: session.get("trucoRoom"), token: SDL.token, name: playerName() });
@@ -48,10 +51,10 @@
       } else if (m.type === "trucoJoined") {
         seat = m.seat;
         session.set("trucoRoom", m.code);
-        history.replaceState(null, "", "/truco?sala=" + m.code);
+        if (!local) history.replaceState(null, "", "/truco?sala=" + m.code);
       } else if (m.type === "trucoSign") {
         const s = SIGNS.find((x) => x[0] === m.kind);
-        if (s) { bubble(m.from, s[0] + " " + s[1], "sign"); sound("tick"); }
+        if (s) { bubble(m.from, s[0], "sign"); sound("tick"); }
       } else if (m.type === "trucoState") {
         const old = st;
         st = m.state;
@@ -400,7 +403,7 @@
     const partnerHuman = st.size === 4 && !st.bots[(seat + 2) % 4];
     $("signs").classList.toggle("hide", !partnerHuman || h.ended);
     if (partnerHuman && !$("signs").children.length) {
-      $("signs").append(...SIGNS.map(([e, t]) => el("button", { type: "button", onclick: () => { net.send({ action: "sign", kind: e }); toast("Seña enviada a tu compañero " + e); } }, el("span", { textContent: e }), t)));
+      $("signs").append(...SIGNS.map(([e, t]) => el("button", { type: "button", textContent: e, ariaLabel: "Seña: " + t, onclick: () => { net.send({ action: "sign", kind: e }); toast("Seña enviada " + e); sound("tick"); } })));
     }
     const tip = $("ticker");
     if (h.ended) tip.textContent = st.over ? "" : "Enseguida se reparte la próxima mano…";

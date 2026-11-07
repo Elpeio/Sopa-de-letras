@@ -22,6 +22,7 @@ src/
   client/          páginas, estilos y scripts del navegador
 test/              pruebas de lógica y de partidas por WebSocket
 scripts/build.ts   genera dist/function.ts (un solo archivo)
+scripts/build-artifact.ts   genera dist/truco.html (el Truco contra la compu, sin servidor)
 legacy/            código original de la Railway Function, por si hace falta volver
 ```
 
@@ -32,6 +33,7 @@ bun install
 bun run dev     # http://localhost:3000
 bun test
 bun run build   # dist/function.ts
+bun run build:artifact   # dist/truco.html: el Truco en una sola página, sin servidor (sólo contra la compu)
 ```
 
 ## Despliegue en Railway

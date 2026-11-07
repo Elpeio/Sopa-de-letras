@@ -173,8 +173,9 @@
     @keyframes shout { from { transform: scale(.7); } }
     .actions .mazo { font-size: 13px; min-height: 36px; opacity: .7; }
     .signs { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin-top: 8px; }
-    .signs button { font: inherit; border: 1px solid var(--line); background: #ffffff08; color: var(--text); border-radius: 999px; padding: 6px 10px; font-size: 13px; font-weight: 800; cursor: pointer; }
-    .signs button span { font-size: 18px; margin-right: 4px; }
+    .signs button { font: inherit; border: 1px solid var(--line); background: #ffffff08; border-radius: 999px; width: 44px; height: 44px; padding: 0; font-size: 24px; line-height: 1; cursor: pointer; transition: transform .12s, background .15s; }
+    .signs button:active { transform: scale(.9); background: #ffffff18; }
+    .bubble.sign { font-size: 34px; padding: 6px 12px; line-height: 1.1; }
     .ticker { text-align: center; margin-top: 10px; font-size: 13px; color: var(--muted); min-height: 20px; }
     .ticker b { color: var(--text); }
 
@@ -260,6 +261,7 @@
           <li><b>Flor</b> (opcional): tres del mismo palo. Vale 3, cancela el envido. Si los dos tienen flor: «con flor quiero» (gana la más alta, 6), «con flor me achico» (4) o «contraflor al resto» (lo que falta).</li>
           <li><b>Paraguayana</b> (opcional, regla de bar): si te tocan tres cartas malas de distinto palo (4, 5, 6 o 7 falso), gritás «¡Paraguayana!» y se reparte de nuevo.</li>
           <li><b>Irse al mazo</b>: regalás lo que valía la mano (y 1 más si todavía no se cantó envido en la primera).</li>
+          <li><b>Señas</b> (2 vs 2): las ve solamente tu compañero. 😉 ancho de espadas · 😜 ancho de bastos · 😏 7 de espadas · 🙃 7 de oros · 😬 un 3 · 😘 un 2 · 🤨 ancho falso · 😑 no tengo nada · 🙌 tengo envido.</li>
           <li>A 30 puntos: los primeros 15 son las <b>malas</b>, los otros las <b>buenas</b>.</li>
         </ul>
       </details>
