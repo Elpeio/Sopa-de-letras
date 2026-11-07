@@ -107,6 +107,10 @@ export interface TrucoRoom {
   touched: number;
   botSeq: number;
   hints: Record<number, string[]>;
+  asked: Record<number, boolean>;
+  waited: Record<number, boolean>;
+  lastSign: Record<string, number>;
+  advised?: string;
   signTimers: ReturnType<typeof setTimeout>[];
   timer?: ReturnType<typeof setTimeout>;
   timer2?: ReturnType<typeof setTimeout>;
@@ -116,6 +120,8 @@ export interface TrucoRoom {
 export const trucoRooms = new Map<string, TrucoRoom>();
 
 const teamOf = (seat: number) => (seat % 2) as Team;
+export const pieOf = (r: TrucoRoom, team: number) => (r.size === 4 && r.hand ? (teamOf(r.hand.mano) === team ? (r.hand.mano + 2) % 4 : (r.hand.mano + 3) % 4) : -1);
+const isPie = (r: TrucoRoom, i: number) => r.size !== 4 || pieOf(r, teamOf(i)) === i;
 const seatsOf = (r: TrucoRoom, team: number) => Array.from({ length: r.size }, (_, i) => i).filter((i) => teamOf(i) === team);
 const teamHasHuman = (r: TrucoRoom, team: number) => seatsOf(r, team).some((i) => !r.bots[i]);
 /** Quiénes del equipo tienen flor y todavía pueden cantarla (no jugaron carta). */
@@ -150,7 +156,8 @@ export function actionsFor(r: TrucoRoom, i: number): string[] {
   const team = teamOf(i);
   const myFlor = r.opts.flor && hasFlor(h.dealt[i]);
   const played = h.cards[i].length < 3;
-  const envidoOpen = h.trick === 0 && !played && h.envido.state !== "done" && h.flor.state === "none";
+  // En pareja, el envido lo canta el pie de cada equipo (el último en jugar): el compañero del mano y el que reparte.
+  const envidoOpen = h.trick === 0 && !played && h.envido.state !== "done" && h.flor.state === "none" && isPie(r, i);
   const out: string[] = [];
   if (h.pending) {
     if (h.pending.team !== team) return [];
@@ -450,11 +457,39 @@ function say(r: TrucoRoom, i: number, text: string, chance = 1) {
   r.timer2 = setTimeout(() => { if (r.hand === h) { event(r, { kind: "say", seat: i, text }); emit(r); } }, 700 + Math.random() * 600);
 }
 
+function sendSign(r: TrucoRoom, from: number, to: number, kind: string) {
+  const key = `${from}>${to}:${kind}`, now = Date.now();
+  if (now - (r.lastSign[key] ?? 0) < 3000) return; // la misma seña dos veces seguidas no aporta
+  r.lastSign[key] = now;
+  for (const ws of r.sockets) if (ws.data.seat === to) sendTo(ws, { type: "trucoSign", from, kind });
+}
+const envidoSign = (cards: Card[]) => (envidoOf(cards) >= 28 ? "🙌" : envidoOf(cards) >= 24 ? "👍" : "😑");
+const bestSign = (cards: Card[]) => SIGN_FOR[Math.max(0, ...cards.map(power))] ?? "😑";
+
+/** Cuando el rival canta algo contra un equipo de humano + compu, la compu le susurra al humano lo que tiene. */
+function botAdvice(r: TrucoRoom) {
+  const h = r.hand;
+  if (!h || h.ended || !h.pending || r.size !== 4) return;
+  const key = `${h.num}:${h.pending.kind}:${h.envido.calls.join("")}:${h.truco.level}:${h.flor.level}`;
+  if (r.advised === key) return;
+  r.advised = key;
+  for (const i of seatsOf(r, h.pending.team)) {
+    const partner = (i + 2) % 4;
+    if (!r.bots[i] || r.bots[partner]) continue;
+    const kind = h.pending.kind === "envido" ? envidoSign(h.dealt[i]) : bestSign(h.cards[i]);
+    r.signTimers.push(setTimeout(() => { if (r.hand === h) sendSign(r, i, partner, kind); }, 700));
+  }
+}
+
 /** Después de repartir, la compu le hace señas de sus mejores cartas a su compañero de carne y hueso. */
 function botSigns(r: TrucoRoom) {
   for (const t of r.signTimers) clearTimeout(t);
   r.signTimers = [];
   r.hints = {};
+  r.asked = {};
+  r.waited = {};
+  r.lastSign = {};
+  r.advised = undefined;
   if (r.size !== 4 || !r.hand) return;
   const h = r.hand;
   for (let i = 0; i < 4; i++) {
@@ -464,10 +499,9 @@ function botSigns(r: TrucoRoom) {
     const kinds = [...cards].sort((a, b) => power(b) - power(a)).map((c) => SIGN_FOR[power(c)]).filter(Boolean).slice(0, 2);
     if (envidoOf(cards) >= 28) kinds.push("🙌");
     if (!kinds.length) kinds.push("😑");
-    kinds.forEach((kind, k) => r.signTimers.push(setTimeout(() => {
-      if (r.hand !== h) return;
-      for (const ws of r.sockets) if (ws.data.seat === partner) sendTo(ws, { type: "trucoSign", from: i, kind });
-    }, 1500 + k * 1600 + Math.random() * 500)));
+    // "¿Hay pie?": si la compu es el pie, primero le pide seña a su compañero.
+    if (isPie(r, i)) { kinds.unshift("❓"); r.asked[i] = true; }
+    kinds.forEach((kind, k) => r.signTimers.push(setTimeout(() => { if (r.hand === h) sendSign(r, i, partner, kind); }, 1200 + k * 1500 + Math.random() * 400)));
   }
 }
 
@@ -484,6 +518,7 @@ function teamInfo(r: TrucoRoom, i: number) {
       const p = Number(Object.keys(SIGN_FOR).find((x) => SIGN_FOR[Number(x)] === k) ?? 0);
       best = Math.max(best, p);
       if (k === "🙌") envido = Math.max(envido, 29);
+      if (k === "👍") envido = Math.max(envido, 25);
     }
   }
   return { best, envido };
@@ -566,6 +601,8 @@ export function botChoice(r: TrucoRoom, i: number): any {
       return { action: "noquiero" };
     }
     if (h.pending.kind === "truco") {
+      // Con compañero humano, la compu sólo interviene como pie para cantar el envido que está primero; el resto lo decide el humano.
+      if (teamHasHuman(r, team)) return acts.includes("E") && env >= 28 ? { action: env >= 32 ? "R" : "E" } : null;
       if (acts.includes("E") && (env >= 28 || (bluff && env >= 23))) return { action: env >= 32 ? "R" : "E" };
       const s = trucoStrength(r, i);
       const raise = acts.find((a) => a === "retruco" || a === "vale4");
@@ -584,7 +621,9 @@ export function botChoice(r: TrucoRoom, i: number): any {
   if (acts.includes("E")) {
     if (env >= 33 && (rnd < 0.5 || closing)) return { action: "F" };
     if (env >= 31) return { action: rnd < 0.5 ? "R" : "E" };
-    if (env >= 27 + edge || (env >= 24 && rnd < 0.35) || (bluff && env >= 18)) return { action: "E" };
+    if (env >= 29) return { action: "E" };
+    if (env >= 27 + edge && rnd < 0.7) return { action: "E" }; // con 27 o 28 a veces conviene callarse
+    if ((env >= 24 && rnd < 0.3) || (bluff && env >= 18)) return { action: "E" };
   }
   const s = trucoStrength(r, i);
   const trucoAct = acts.find((a) => a === "truco" || a === "retruco" || a === "vale4");
@@ -592,7 +631,7 @@ export function botChoice(r: TrucoRoom, i: number): any {
     const threshold = (trucoAct === "truco" ? 0.58 : trucoAct === "retruco" ? 0.74 : 0.88) - (behind ? 0.08 : 0);
     const wonFirst = h.trickWinner[0] === team;
     // Canta con cartas, cuando ya ganó la primera con algo decente, o de mentira.
-    if (s >= threshold || (trucoAct === "truco" && wonFirst && s >= 0.4) || (bluff && trucoAct === "truco" && (h.trick > 0 || rnd < me.bluff * 2))) return { action: trucoAct };
+    if (s >= threshold || (trucoAct === "truco" && wonFirst && s >= 0.4) || (bluff && trucoAct === "truco" && (h.trick > 0 || Math.random() < me.bluff))) return { action: trucoAct };
   }
   // Irse al mazo cuando ya está perdida y no hay nada que defender.
   if (acts.includes("mazo") && h.trickWinner[0] >= 0 && h.trickWinner[0] !== team && s < 0.18 && h.truco.level === 0 && rnd < 0.5) return { action: "mazo" };
@@ -608,7 +647,7 @@ export function botSeat(r: TrucoRoom): number {
   if (h.pending) {
     const team = h.pending.team;
     if (h.pending.kind === "flor") return seatsOf(r, team).find((i) => r.bots[i] && actionsFor(r, i).includes("florquiero")) ?? -1;
-    if (teamHasHuman(r, team)) return -1;
+    if (teamHasHuman(r, team)) return h.pending.kind === "truco" ? seatsOf(r, team).find((i) => r.bots[i] && actionsFor(r, i).includes("E")) ?? -1 : -1;
     return seatsOf(r, team).find((i) => r.bots[i] && actionsFor(r, i).length) ?? -1;
   }
   return r.bots[h.turn] ? h.turn : -1;
@@ -619,6 +658,15 @@ export function botTurn(r: TrucoRoom) {
   if (i < 0) return;
   const seq = ++r.botSeq;
   clearTimeout(r.timer);
+  let delay = BOT_DELAY + Math.random() * 700;
+  // Antes de cantar en la primera, el pie compu le da unos segundos a su compañero humano para que le haga seña.
+  const partner = (i + 2) % 4;
+  const h0 = r.hand!;
+  if (r.size === 4 && !r.bots[partner] && isPie(r, i) && h0.trick === 0 && !r.waited[i] && !(r.hints[i]?.length) && actionsFor(r, i).some((a) => a === "E" || a === "truco")) {
+    r.waited[i] = true;
+    if (!r.asked[i]) { r.asked[i] = true; sendSign(r, i, partner, "❓"); }
+    delay = 4000;
+  }
   r.timer = setTimeout(() => {
     if (seq !== r.botSeq || botSeat(r) !== i) return;
     const choice = botChoice(r, i);
@@ -638,8 +686,9 @@ export function botTurn(r: TrucoRoom) {
       // (sólo si el rival no quiso el envido que cantó de verso)
     }
     emit(r);
+    botAdvice(r);
     botTurn(r);
-  }, BOT_DELAY + Math.random() * 700);
+  }, delay);
 }
 
 // --- Mensajes ---------------------------------------------------------------------
@@ -654,7 +703,7 @@ function newRoom(m: any, size: 2 | 4, vsBot: boolean): TrucoRoom {
     code, size, names, tokens: [String(m.token), ...Array(size - 1).fill(null)], bots,
     opts: { flor: !!m.flor, paraguayana: !!m.paraguayana }, target: TARGETS.includes(m.target) ? m.target : 30,
     scores: [0, 0], wins: [0, 0], started: false, over: false, winner: -1, hand: null, handCount: 0, events: [],
-    sockets: new Set(), touched: Date.now(), botSeq: 0, hints: {}, signTimers: [],
+    sockets: new Set(), touched: Date.now(), botSeq: 0, hints: {}, asked: {}, waited: {}, lastSign: {}, signTimers: [],
   };
   trucoRooms.set(code, r);
   return r;
@@ -724,10 +773,17 @@ export function trucoMessage(ws: Sock, m: any) {
       if (r.size !== 4) return;
       const partner = (i + 2) % 4, kind = String(m.kind).slice(0, 12);
       if (r.bots[partner]) {
-        (r.hints[partner] ??= []).push(kind);
         const h = r.hand;
-        r.signTimers.push(setTimeout(() => { if (r.hand === h) for (const ws of r.sockets) if (ws.data.seat === i) sendTo(ws, { type: "trucoSign", from: partner, kind: "👌" }); }, 900));
-      } else for (const peer of r.sockets) if (peer.data.seat === partner) sendTo(peer, { type: "trucoSign", from: i, kind });
+        if (!h) return;
+        if (kind === "❓") {
+          const answers = [envidoSign(h.dealt[partner]), bestSign(h.cards[partner])];
+          answers.forEach((k, n) => r.signTimers.push(setTimeout(() => { if (r.hand === h) sendSign(r, partner, i, k); }, 900 + n * 1100)));
+        } else {
+          (r.hints[partner] ??= []).push(kind);
+          r.signTimers.push(setTimeout(() => { if (r.hand === h) sendSign(r, partner, i, "👌"); }, 900));
+          botTurn(r);
+        }
+      } else sendSign(r, i, partner, kind);
       return;
     }
     case "chat": {
@@ -741,6 +797,7 @@ export function trucoMessage(ws: Sock, m: any) {
   const problem = act(r, i, m);
   if (problem) return error(problem);
   emit(r);
+  botAdvice(r);
   botTurn(r);
 }
 

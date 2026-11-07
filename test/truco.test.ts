@@ -69,7 +69,7 @@ function room(size: 2 | 4, opts = { flor: true, paraguayana: true }): TrucoRoom 
   const r: TrucoRoom = {
     code: "TEST1", size, names: Array.from({ length: size }, (_, i) => "J" + i), tokens: [], bots: Array(size).fill(false),
     opts, target: 30, scores: [0, 0], wins: [0, 0], started: false, over: false, winner: -1, hand: null, handCount: 0, events: [],
-    sockets: new Set(), touched: 0, botSeq: 0, hints: {}, signTimers: [],
+    sockets: new Set(), touched: 0, botSeq: 0, hints: {}, asked: {}, waited: {}, lastSign: {}, signTimers: [],
   };
   deal(r);
   return r;
@@ -171,13 +171,16 @@ describe("truco: una mano", () => {
     rig(r, [[c(3, O), c(4, C), c(4, E)], [c(2, O), c(5, C), c(4, B)], [c(3, C), c(5, B), c(6, O)], [c(2, C), c(6, C), c(5, E)]]);
     expect(envidoOf(r.hand!.dealt[1])).toBe(5);
     expect(envidoOf(r.hand!.dealt[3])).toBe(28);
+    expect(actionsFor(r, 0)).not.toContain("E"); // el mano no canta el envido: lo canta su pie
     act(r, 0, { action: "play", id: c(3, O).id });
-    act(r, 1, { action: "E" }); // el 1 canta antes de jugar
-    expect(actionsFor(r, 2)).toContain("quiero");
-    act(r, 2, { action: "quiero" });
+    expect(actionsFor(r, 1)).not.toContain("E");
+    act(r, 1, { action: "play", id: c(2, O).id });
+    expect(actionsFor(r, 2)).toContain("E"); // el pie del equipo del mano
+    act(r, 2, { action: "E" });
+    expect(actionsFor(r, 3)).toContain("quiero");
+    act(r, 3, { action: "quiero" });
     expect(r.scores).toEqual([0, 2]); // 28 del 3 contra 6 del 2
     expect(r.hand!.envidoResult!.says.map((s) => s.value)).toEqual([4, 5, 6, 28]);
-    act(r, 1, { action: "play", id: c(2, O).id });
     act(r, 2, { action: "play", id: c(3, C).id });
     act(r, 3, { action: "play", id: c(2, C).id });
     expect(r.hand!.trickWinner).toEqual([0]); // dos treses del mismo equipo

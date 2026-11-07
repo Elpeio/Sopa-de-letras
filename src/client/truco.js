@@ -12,7 +12,7 @@
     quiero: "¡Quiero!", noquiero: "No quiero", florquiero: "Con flor quiero", florachico: "Con flor me achico", contraflor: "Contraflor al resto",
     mazo: "Me voy al mazo", paraguayana: "🇵🇾 ¡Paraguayana!",
   };
-  const SIGNS = [["😉", "Ancho de espadas"], ["😜", "Ancho de bastos"], ["😏", "7 de espadas"], ["🙃", "7 de oros"], ["😬", "Un 3"], ["😘", "Un 2"], ["🤨", "Ancho falso"], ["😑", "No tengo nada"], ["🙌", "Tengo envido"]];
+  const SIGNS = [["😉", "Ancho de espadas"], ["😜", "Ancho de bastos"], ["😏", "7 de espadas"], ["🙃", "7 de oros"], ["😬", "Un 3"], ["😘", "Un 2"], ["🤨", "Ancho falso"], ["🙌", "Tengo envido (28 o más)"], ["👍", "Tengo algo de envido"], ["😑", "No tengo nada"], ["❓", "¿Tenés algo?"], ["👌", "Entendido"]];
   const FACES = ["🙂", "🧔", "👩", "🧑"];
 
   $("name").value = store.get("name", "");
@@ -60,7 +60,7 @@
         if (!local) history.replaceState(null, "", "/truco?sala=" + m.code);
       } else if (m.type === "trucoSign") {
         const s = SIGNS.find((x) => x[0] === m.kind);
-        if (s) { bubble(m.from, s[0], "sign"); sound("tick"); }
+        if (s) { bubble(m.from, s[0], "sign"); sound("tick"); if (m.kind === "❓") toast("Tu compañero te pide seña 🤫"); }
       } else if (m.type === "trucoState") {
         const old = st;
         st = m.state;
@@ -414,7 +414,7 @@
     const hasPartner = st.size === 4;
     $("signs").classList.toggle("hide", !hasPartner || h.ended);
     if (hasPartner && !$("signs").children.length) {
-      $("signs").append(...SIGNS.map(([e, t]) => el("button", { type: "button", textContent: e, ariaLabel: "Seña: " + t, onclick: () => { net.send({ action: "sign", kind: e }); toast("Seña enviada " + e); sound("tick"); } })));
+      $("signs").append(...SIGNS.filter(([e]) => e !== "👌").map(([e, t]) => el("button", { type: "button", textContent: e, ariaLabel: "Seña: " + t, onclick: () => { net.send({ action: "sign", kind: e }); toast("Seña enviada " + e); sound("tick"); } })));
     }
     const tip = $("ticker");
     if (h.ended) tip.textContent = st.over ? "" : "Enseguida se reparte la próxima mano…";
