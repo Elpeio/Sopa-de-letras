@@ -36,12 +36,25 @@ bun run build   # dist/function.ts
 bun run build:artifact   # dist/truco.html: el Truco en una sola página, sin servidor (sólo contra la compu)
 ```
 
-## Despliegue en Railway
+## Dónde jugarlo
 
-El servicio `sopa-duelo` del proyecto *Sopa de Letras Online* es una Railway
-Function: corre un único archivo TypeScript. `bun run build` genera ese archivo
-en `dist/function.ts` con todas las páginas incrustadas; es lo que se pega como
-código de la función.
+### Contra la compu, sin servidor: GitHub Pages
+
+`bun run build:artifact` genera `dist/truco.html`, el Truco completo (reglas y
+bot) en una sola página. El workflow `.github/workflows/pages.yml` lo publica en
+GitHub Pages en cada push; la primera vez hay que habilitar Pages en el repo
+(Settings → Pages → Source: *GitHub Actions*) si el workflow no lo logra solo.
+
+### Con gente: un servidor Bun
+
+El multijugador (salas por enlace, WebSocket) necesita el servidor de
+`src/server.ts` corriendo en algún lado. Hay un `Dockerfile` y un
+`render.yaml` para desplegarlo gratis en Render desde el repo
+(render.com → New → Blueprint → este repo). El plan gratuito se duerme tras
+unos minutos sin uso y tarda medio minuto en despertar.
 
 Las salas viven en memoria: si el servicio se reinicia, las partidas en curso se
 pierden (las estadísticas y récords quedan guardados en cada celular).
+
+`bun run build` sigue generando `dist/function.ts`, el servidor en un único
+archivo, por si se vuelve a usar una Railway Function u otro host de ese estilo.

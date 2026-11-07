@@ -1,0 +1,32 @@
+# Publica el Truco contra la compu (una sola página, sin servidor) en GitHub Pages.
+# Para activarlo: Settings → Pages → Source: "GitHub Actions" (el workflow intenta hacerlo solo).
+name: Truco en GitHub Pages
+on:
+  push:
+    branches: [claude/railway-games-library-2n4usr, ccr-522dacd0-yfdgiw]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: true
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun run build:artifact && mkdir -p site && cp dist/truco.html site/index.html
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deployment
+        uses: actions/deploy-pages@v4

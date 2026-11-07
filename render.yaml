@@ -1,0 +1,8 @@
+# Blueprint de Render: en render.com → New → Blueprint → elegir este repo.
+services:
+  - type: web
+    name: sopa-de-letras
+    runtime: docker
+    plan: free
+    healthCheckPath: /health
+    autoDeploy: true
